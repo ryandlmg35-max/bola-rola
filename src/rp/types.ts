@@ -39,6 +39,7 @@ export interface EntradaFeed {
   id: string;
   turno: number;
   data: string;
+  categoria: Categoria;
   titulo: string;
   cena: string;
   efeitos: string[];
@@ -79,6 +80,8 @@ export interface EstadoRP {
   pessoal: number;
   coin: number;
   holding: number;
+  /** Cartão corporativo: limite $500mi/mês, disponível por turno (bilhões USD). */
+  cartao: number;
   heat: number;
   moral: number;
   aprovacao: number;

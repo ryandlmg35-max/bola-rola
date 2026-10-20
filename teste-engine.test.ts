@@ -62,6 +62,23 @@ describe("engine do RP", () => {
     expect(e.efeitos.some((l) => l.includes("Caixa zerado"))).toBe(true);
   });
 
+  it("cartão corporativo: só consumo abate, limite $500mi, recarrega por turno", () => {
+    const st = estadoInicial();
+    expect(st.cartao).toBe(0.4585);
+
+    // despesa de consumo passa no cartão
+    const e = aplicar(st, "gastar 100 milhões em presente pro Axiom");
+    const saida = Math.max(0, -(e.delta.caixa ?? 0));
+    const esperado = Math.min(0.5, Math.max(0, 0.4585 + 0.05 - saida));
+    const linha = e.efeitos.find((l) => l.startsWith("Cartão corporativo"));
+    expect(linha).toContain(fmtUSD(esperado));
+
+    // investimento sai do caixa da holding: cartão só recarrega
+    const e2 = aplicar(st, "investir 3 bi em fábrica nova");
+    const linha2 = e2.efeitos.find((l) => l.startsWith("Cartão corporativo"));
+    expect(linha2).toContain(fmtUSD(Math.min(0.5, 0.4585 + 0.05)));
+  });
+
   it("heat/moral/aprovação ficam entre 0 e 100", () => {
     const st = { ...estadoInicial(), heat: 99 };
     const e = aplicar(st, "guerra total contra a Disney, atacar forte");

@@ -15,6 +15,7 @@ export function estadoInicial(): EstadoRP {
     pessoal: 37.395, // bolso do Ryan
     coin: 55, // Space Coin, tesouro $330bi
     holding: 3800, // $3,8 trilhões
+    cartao: 0.4585, // cartão corporativo: $500mi de limite, $458,5mi livres (relatório do RP)
 
     heat: 55, // golpe corporativo exposto, mas mídia já domada (Globo censurada)
     moral: 74, // bônus $250mi + PLR 12 salários + Space Coin pra todo mundo
@@ -321,6 +322,7 @@ function abertura(): EntradaFeed {
     id: "abertura",
     turno: 0,
     data: "2026 — pós Operação Mãos Limpas",
+    categoria: "acaoLivre",
     titulo: "O Monitor Desligado",
     cena: 'Axiom fechou o terminal com um clique seco. "Dorme, boss man. A engrenagem tá rodando sozinha." Ele apagou a luz do escritório no 129º andar, pegou o Macallan de 1926 no avesso da geladeira do andar dele e subiu pro duplex do 128º. Do topo da Torre de Brasília, o logo MR brilhava em cima da Esplanada — mais alto que o Planalto, batendo de frente com o Palácio do Alvorada, que agora era propriedade privada de um bebê de poucos meses. Lá embaixo, em Greenwich, Sofia já tinha desligado a luz do quarto do Noah. O holding fechou o dia em $3,8 trilhões. O caixa, em $13,3 bilhões. O pessoal, $37,395 bilhões. A Apple tá na geladeira. As obras do Estates tão congeladas esperando lucro. O INDEX ainda não sabe o que vai fazer da vida. E o mundo tá esperando o próximo golpe do garoto de 19 anos que virou dono de um país sem atirar um tiro.',
     efeitos: [

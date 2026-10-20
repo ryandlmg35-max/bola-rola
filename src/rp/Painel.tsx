@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Send, Brain, Cpu } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,17 @@ import { fmtUSD } from "./engine";
 import { loreLinhas } from "./lore";
 import { Ajustes } from "./Ajustes";
 import type { EntradaFeed } from "./types";
+
+function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-xl border border-border/40 bg-card/50 px-2.5 py-1.5">
+      <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        {titulo}
+      </span>
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
+    </div>
+  );
+}
 
 function Chip({ label, valor, tom }: { label: string; valor: string; tom?: string }) {
   return (
@@ -139,22 +150,34 @@ export function Painel() {
               Ryan Dalbert · Chairman · {estado.data}
             </div>
           </div>
-          <div className="flex flex-1 flex-wrap gap-2">
-            <Chip label="Caixa holding" valor={fmtUSD(estado.caixa)} tom="text-primary" />
-            <Chip label="Bolso Ryan" valor={fmtUSD(estado.pessoal)} />
-            <Chip
-              label="Space Coin"
-              valor={`$${estado.coin.toFixed(2).replace(".", ",")}`}
-              tom="text-ouro"
-            />
-            <Chip label="Patrimônio" valor={fmtUSD(estado.holding)} />
-            <Chip
-              label="Heat"
-              valor={`${estado.heat}`}
-              tom={estado.heat > 70 ? "text-destructive" : "text-foreground"}
-            />
-            <Chip label="Moral" valor={`${estado.moral}`} />
-            <Chip label="Povo" valor={`${estado.aprovacao}`} />
+          <div className="flex flex-1 flex-wrap items-stretch gap-2">
+            <Grupo titulo="Ryan Dalbert · pessoal">
+              <Chip
+                label="Patrimônio (74% da holding)"
+                valor={fmtUSD(estado.holding * 0.74 + estado.pessoal)}
+                tom="text-ouro"
+              />
+              <Chip label="Caixa pessoal" valor={fmtUSD(estado.pessoal)} />
+            </Grupo>
+            <Grupo titulo="Space Group">
+              <Chip label="Valor do grupo" valor={fmtUSD(estado.holding)} />
+              <Chip label="Caixa livre" valor={fmtUSD(estado.caixa)} tom="text-primary" />
+              <Chip label="Cartão corp. ($500mi)" valor={fmtUSD(estado.cartao)} />
+            </Grupo>
+            <Grupo titulo="Indicadores">
+              <Chip
+                label="Space Coin"
+                valor={`$${estado.coin.toFixed(2).replace(".", ",")}`}
+                tom="text-ouro"
+              />
+              <Chip
+                label="Heat"
+                valor={`${estado.heat}`}
+                tom={estado.heat > 70 ? "text-destructive" : "text-foreground"}
+              />
+              <Chip label="Moral" valor={`${estado.moral}`} />
+              <Chip label="Povo" valor={`${estado.aprovacao}`} />
+            </Grupo>
           </div>
           <Button size="sm" variant="outline" onClick={() => setAjustesAbertos(true)}>
             ⚙ Ajustes

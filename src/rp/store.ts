@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { ConfigIA, EntradaFeed, EstadoRP } from "./types";
 import { estadoInicial } from "./estadoInicial";
-import { aplicar } from "./engine";
+import { LIMITE_CARTAO, aplicar } from "./engine";
 import { narrarPorIA } from "./narrador";
 
 const CHAVE_LS = "space-mr-rp-v1";
@@ -51,6 +51,7 @@ export const useRP = create<LojaRP>((set, get) => ({
     set({
       estado: {
         ...salvo,
+        cartao: typeof salvo.cartao === "number" ? salvo.cartao : inicial.cartao,
         divisoes: inicial.divisoes,
         relacoes: { ...inicial.relacoes, ...salvo.relacoes },
         pendencias: inicial.pendencias.map((p) => {
@@ -149,6 +150,19 @@ function estadoCom(entrada: EntradaFeed): EstadoRP {
     pessoal: Math.max(0, est.pessoal + (d.pessoal ?? 0)),
     coin: Math.max(1, +(est.coin + (d.coin ?? 0)).toFixed(2)),
     holding: Math.max(0, est.holding + (d.holding ?? 0)),
+    cartao: Math.max(
+      0,
+      Math.min(
+        LIMITE_CARTAO,
+        est.cartao +
+          0.05 -
+          (entrada.categoria === "gasto" ||
+          entrada.categoria === "familia" ||
+          entrada.categoria === "caridade"
+            ? Math.max(0, -(d.caixa ?? 0))
+            : 0),
+      ),
+    ),
     heat: clamp(est.heat + (d.heat ?? 0)),
     moral: clamp(est.moral + (d.moral ?? 0)),
     aprovacao: clamp(est.aprovacao + (d.aprovacao ?? 0)),

@@ -101,12 +101,16 @@ function padraoPorCategoria(c: Categoria): number {
   }
 }
 
+export const LIMITE_CARTAO = 0.5; // $500mi/mês (relatório de abertura de mês do RP)
+
 export function fmtUSD(bi: number): string {
   const abs = Math.abs(bi);
   const s = (v: number) => v.toFixed(abs >= 10 ? 1 : 2).replace(".", ",");
   if (abs >= 1000) return `$${(abs / 1000).toFixed(2).replace(".", ",")}tri`;
   if (abs >= 1) return `${bi < 0 ? "-" : ""}$${s(abs)}bi`;
-  return `${bi < 0 ? "-" : ""}$${Math.round(abs * 1000)}M`;
+  const m = abs * 1000;
+  const ms = Number.isInteger(m) ? String(m) : m.toFixed(1).replace(".", ",");
+  return `${bi < 0 ? "-" : ""}$${ms}M`;
 }
 
 function clamp(v: number, min = 0, max = 100): number {
@@ -358,10 +362,19 @@ export function aplicar(estadoAnterior: EstadoRP, texto: string): EntradaFeed {
     caixa: estadoAnterior.caixa,
     holding: estadoAnterior.holding,
     coin: estadoAnterior.coin,
+    cartao: estadoAnterior.cartao,
     heat: estadoAnterior.heat,
     moral: estadoAnterior.moral,
     aprovacao: estadoAnterior.aprovacao,
   };
+  // Cartão corporativo: despesa de consumo (gasto/família/caridade) passa no
+  // cartão; investimento/política/etc. sai do caixa da holding direto.
+  // Limite mensal recarrega +$50mi por turno (clamp 0..$500mi).
+  const noCartao =
+    categoria === "gasto" || categoria === "familia" || categoria === "caridade"
+      ? Math.max(0, -(delta.caixa ?? 0))
+      : 0;
+  const cartao = clamp(estadoAnterior.cartao + 0.05 - noCartao, 0, LIMITE_CARTAO);
   const novo: EstadoRP = {
     ...estadoAnterior,
     turno,
@@ -370,6 +383,7 @@ export function aplicar(estadoAnterior: EstadoRP, texto: string): EntradaFeed {
     pessoal: Math.max(0, estadoAnterior.pessoal + (delta.pessoal ?? 0)),
     coin: Math.max(1, +(estadoAnterior.coin + (delta.coin ?? 0)).toFixed(2)),
     holding: Math.max(0, estadoAnterior.holding + (delta.holding ?? 0)),
+    cartao,
     heat: clamp(estadoAnterior.heat + (delta.heat ?? 0)),
     moral: clamp(estadoAnterior.moral + (delta.moral ?? 0)),
     aprovacao: clamp(estadoAnterior.aprovacao + (delta.aprovacao ?? 0)),
@@ -395,6 +409,7 @@ export function aplicar(estadoAnterior: EstadoRP, texto: string): EntradaFeed {
     id: `turno-${turno}-${estadoAnterior.seed}`,
     turno,
     data: novo.data,
+    categoria,
     titulo: tituloPorCategoria(categoria, r),
     cena,
     efeitos: linhas,
@@ -430,6 +445,7 @@ function montarEfeitos(
     caixa: number;
     holding: number;
     coin: number;
+    cartao: number;
     heat: number;
     moral: number;
     aprovacao: number;
@@ -451,6 +467,7 @@ function montarEfeitos(
   };
   const fmtCoin = (v: number) => `${v < 0 ? "-" : ""}$${Math.abs(v).toFixed(2).replace(".", ",")}`;
   seta("Caixa da holding", antes.caixa, novo.caixa, fmtUSD);
+  seta("Cartão corporativo", antes.cartao, novo.cartao, fmtUSD);
   seta("Patrimônio", antes.holding, novo.holding, (v) => fmtUSD(v));
   seta("Space Coin", antes.coin, novo.coin, fmtCoin);
   stat("Moral", antes.moral, novo.moral);
