@@ -72,6 +72,13 @@ export interface ConfigIA {
   modelo: string;
 }
 
+export interface MsgChat {
+  id: string;
+  de: "ryan" | "sofia";
+  texto: string;
+  turno: number;
+}
+
 export interface EstadoRP {
   turno: number;
   data: string;
@@ -89,5 +96,6 @@ export interface EstadoRP {
   divisoes: Divisao[];
   pendencias: Pendencia[];
   feed: EntradaFeed[];
+  chatSofia: MsgChat[];
   config: ConfigIA;
 }

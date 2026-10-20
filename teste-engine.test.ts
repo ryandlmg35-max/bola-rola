@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { estadoInicial } from "./src/rp/estadoInicial";
 import { aplicar, fmtUSD, interpretar } from "./src/rp/engine";
 import { buscarLore, loreLinhas } from "./src/rp/lore";
+import { respostaLocalSofia } from "./src/rp/sofia";
 
 describe("engine do RP", () => {
   it("classifica ação e lê o valor em bilhões", () => {
@@ -88,6 +89,35 @@ describe("engine do RP", () => {
     const e2 = aplicar(stAlto, "caridade total, doar tudo pros pobres");
     expect(e2.delta.heat ?? 0).toBeLessThan(0); // caridade puxa o heat pra baixo…
     for (const l of e2.efeitos) expect(l).not.toMatch(/: -\d+\/100/); // …mas nunca exibe negativo
+  });
+});
+
+describe("chat da Sofia", () => {
+  it("começa com a abertura dela", () => {
+    const st = estadoInicial();
+    expect(st.chatSofia).toHaveLength(1);
+    expect(st.chatSofia[0].de).toBe("sofia");
+    expect(st.chatSofia[0].texto).toContain("$13,3");
+  });
+
+  it("resposta local cita números reais do estado", () => {
+    const st = estadoInicial();
+    const r = respostaLocalSofia(st, "gastar 500 milhões numa festa na Ilha MR");
+    expect(r.length).toBeGreaterThan(10);
+    expect(r).toMatch(/\$13,3bi|\$458,5M/);
+  });
+
+  it("é determinística: mesma pergunta, mesma resposta", () => {
+    const st = estadoInicial();
+    const a = respostaLocalSofia(st, "bom dia Sofia");
+    const b = respostaLocalSofia(st, "bom dia Sofia");
+    expect(a).toBe(b);
+  });
+
+  it("assunto de família responde na voz de mãe, não de auditora", () => {
+    const st = estadoInicial();
+    const r = respostaLocalSofia(st, "como tá o Noah?");
+    expect(r).toMatch(/Noah|Heritage|família/);
   });
 });
 

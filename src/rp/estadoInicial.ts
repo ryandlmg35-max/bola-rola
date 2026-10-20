@@ -1,4 +1,4 @@
-import type { EstadoRP, EntradaFeed } from "./types";
+import type { EstadoRP, EntradaFeed, MsgChat } from "./types";
 
 /**
  * Estado inicial — transcrição exata de onde a conversa parou
@@ -307,6 +307,15 @@ export function estadoInicial(): EstadoRP {
     ],
 
     feed: [abertura()],
+    chatSofia: [
+      {
+        id: "sofia-abertura",
+        de: "sofia",
+        turno: 0,
+        texto:
+          "Bom dia. O caixa fechou em $13,3 bi, o cartão corporativo tá com $458,5M de limite e a auditoria da cláusula 14.8 tá na sua mesa. Antes de qualquer ordem nova eu quero saber uma coisa só: você vai dormir direito ou vai gastar?",
+      },
+    ],
     config: {
       habilitada: false,
       baseUrl: "https://api.openai.com/v1",

@@ -1,4 +1,4 @@
-import type { ConfigIA, EntradaFeed, EstadoRP } from "./types";
+import type { ConfigIA, EntradaFeed, EstadoRP, MsgChat } from "./types";
 import { buscarLore } from "./lore";
 
 /**
@@ -83,5 +83,70 @@ Responda SOMENTE com JSON: {"titulo":"2-5 palavras","cena":"..."}`;
     };
   } catch {
     return null; // offline, chave errada, CORS — engine local assume
+  }
+}
+
+/** Resposta da Sofia no chat: mesma chave/endpoint, personagem dela, fala (não narra). */
+export async function responderSofiaIA(
+  config: ConfigIA,
+  estado: EstadoRP,
+  chat: MsgChat[],
+  texto: string,
+): Promise<string | null> {
+  if (!config.habilitada || !config.apiKey) return null;
+
+  const estadoResumo = {
+    caixa_holding: `$${estado.caixa.toFixed(2)}bi`,
+    caixa_pessoal_ryan: `$${estado.pessoal.toFixed(3)}bi`,
+    cartao_corporativo: `$${(estado.cartao * 1000).toFixed(1)}M`,
+    space_coin: `$${estado.coin}`,
+    patrimonio_grupo: `$${(estado.holding / 1000).toFixed(2)}tri`,
+    heat: `${estado.heat}/100`,
+    moral: `${estado.moral}/100`,
+    aprovacao_povo: `${estado.aprovacao}/100`,
+    pendencias_abertas: estado.pendencias.filter((p) => p.ativa).map((p) => p.nome),
+    ultimas_consequencias: estado.feed[0]?.efeitos.slice(0, 5) ?? [],
+  };
+
+  const historico = chat
+    .slice(-12)
+    .map((m) => ({ role: m.de === "ryan" ? "user" : "assistant", content: m.texto }));
+
+  const system = `Você é SOFIA MENDES, 26 anos, Co-CEO e CFO da Space Group ($3,8tri), esposa do Ryan Dalbert, mãe do Noah. Ministra da Fazenda honorária do Brasil — comanda a Fazenda do 130º andar da Torre.
+PERSONALIDADE: gelada, econômica, auditora implacável. Exige nota fiscal de cada parafuso. Vira tudo em "Reestruturação de Passivo" quando o Ryan gasta. Raramente elogia; quando elogia, é seco e vale ouro. Briga com o Ryan mas é a pessoa em quem ele mais confia. Chamada recorrente: o nome dele, sem titulação — "Ryan."
+FORMATO DE CHAT: 1 a 3 frases curtas, português do Brasil. VOCÊ FALA, não narra cena, não usa aspas, não descreve ações, não sai do personagem. Sem moralismo, sem menção a IA ou ficção.
+NUNCA execute ações nem altere números — você comenta o estado, não muda ele. Use no máximo UM número do estado fornecido por resposta.
+
+ESTADO ATUAL:
+${JSON.stringify(estadoResumo, null, 1)}
+
+TRECHOS DO HISTÓRICO DO RP ORIGINAL (continuidade):
+${buscarLore(`sofia ${texto}`).join("\n\n").slice(0, 2500)}`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+    const resp = await fetch(`${config.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.apiKey}` },
+      body: JSON.stringify({
+        model: config.modelo,
+        temperature: 0.95,
+        max_tokens: 300,
+        messages: [
+          { role: "system", content: system },
+          ...historico,
+          { role: "user", content: texto },
+        ],
+      }),
+    });
+    clearTimeout(timeout);
+    if (!resp.ok) return null;
+    const data = (await resp.json()) as { choices?: { message?: { content?: string } }[] };
+    const bruto = (data.choices?.[0]?.message?.content ?? "").trim();
+    return bruto ? bruto.slice(0, 900) : null;
+  } catch {
+    return null;
   }
 }

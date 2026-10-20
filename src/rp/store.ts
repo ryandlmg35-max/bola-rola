@@ -1,15 +1,18 @@
 import { create } from "zustand";
-import type { ConfigIA, EntradaFeed, EstadoRP } from "./types";
+import type { ConfigIA, EntradaFeed, EstadoRP, MsgChat } from "./types";
 import { estadoInicial } from "./estadoInicial";
 import { LIMITE_CARTAO, aplicar } from "./engine";
-import { narrarPorIA } from "./narrador";
+import { narrarPorIA, responderSofiaIA } from "./narrador";
+import { respostaLocalSofia } from "./sofia";
 
 const CHAVE_LS = "space-mr-rp-v1";
 
 interface LojaRP {
   estado: EstadoRP;
   pensando: boolean;
+  sofiaPensando: boolean;
   enviar: (acao: string) => Promise<void>;
+  falarComSofia: (texto: string) => Promise<void>;
   escolher: (rotulo: string) => Promise<void>;
   ajustarConfig: (c: Partial<ConfigIA>) => void;
   resetar: () => void;
@@ -41,6 +44,7 @@ function carregar(): EstadoRP | null {
 export const useRP = create<LojaRP>((set, get) => ({
   estado: estadoInicial(),
   pensando: false,
+  sofiaPensando: false,
 
   hidratar: () => {
     const salvo = carregar();
@@ -52,6 +56,7 @@ export const useRP = create<LojaRP>((set, get) => ({
       estado: {
         ...salvo,
         cartao: typeof salvo.cartao === "number" ? salvo.cartao : inicial.cartao,
+        chatSofia: Array.isArray(salvo.chatSofia) ? salvo.chatSofia : inicial.chatSofia,
         divisoes: inicial.divisoes,
         relacoes: { ...inicial.relacoes, ...salvo.relacoes },
         pendencias: inicial.pendencias.map((p) => {
@@ -90,6 +95,41 @@ export const useRP = create<LojaRP>((set, get) => ({
     };
     salvar(novo);
     set({ estado: novo, pensando: false });
+  },
+
+  falarComSofia: async (texto: string) => {
+    const t = texto.trim();
+    if (!t || get().sofiaPensando) return;
+
+    const base = get().estado;
+    const msgRyan: MsgChat = {
+      id: `r-${Date.now()}`,
+      de: "ryan",
+      texto: t,
+      turno: base.turno,
+    };
+    const comRyan = [...base.chatSofia, msgRyan];
+    set({ estado: { ...base, chatSofia: comRyan }, sofiaPensando: true });
+
+    let resposta: string | null = null;
+    if (base.config.habilitada && base.config.apiKey) {
+      resposta = await responderSofiaIA(base.config, base, comRyan, t);
+    }
+    if (!resposta) resposta = respostaLocalSofia(base, t);
+
+    const msgSofia: MsgChat = {
+      id: `s-${Date.now()}`,
+      de: "sofia",
+      texto: resposta,
+      turno: base.turno,
+    };
+    const atual = get().estado;
+    const novo: EstadoRP = {
+      ...atual,
+      chatSofia: [...atual.chatSofia, msgSofia].slice(-200),
+    };
+    salvar(novo);
+    set({ estado: novo, sofiaPensando: false });
   },
 
   escolher: async (rotulo: string) => {

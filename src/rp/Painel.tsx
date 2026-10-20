@@ -7,6 +7,7 @@ import { useRP } from "./store";
 import { fmtUSD } from "./engine";
 import { loreLinhas } from "./lore";
 import { Ajustes } from "./Ajustes";
+import { ChatSofia } from "./ChatSofia";
 import type { EntradaFeed } from "./types";
 
 function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
@@ -118,6 +119,7 @@ export function Painel() {
   const { estado, pensando, enviar, escolher, hidratar } = useRP();
   const [texto, setTexto] = useState("");
   const [ajustesAbertos, setAjustesAbertos] = useState(false);
+  const [sofiaAberta, setSofiaAberta] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
   const hidratado = useRef(false);
 
@@ -179,6 +181,9 @@ export function Painel() {
               <Chip label="Povo" valor={`${estado.aprovacao}`} />
             </Grupo>
           </div>
+          <Button size="sm" variant="outline" onClick={() => setSofiaAberta(true)}>
+            💬 Sofia
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setAjustesAbertos(true)}>
             ⚙ Ajustes
           </Button>
@@ -309,6 +314,7 @@ export function Painel() {
       </main>
 
       <Ajustes aberto={ajustesAbertos} onFechar={() => setAjustesAbertos(false)} />
+      <ChatSofia aberto={sofiaAberta} onFechar={() => setSofiaAberta(false)} />
     </div>
   );
 }
