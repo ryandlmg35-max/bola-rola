@@ -44,7 +44,21 @@ export const useRP = create<LojaRP>((set, get) => ({
 
   hidratar: () => {
     const salvo = carregar();
-    if (salvo) set({ estado: salvo });
+    if (!salvo) return;
+    // migração: catálogo (divisões, etapas de pendência, pessoas novas) vem do
+    // código — o save só carrega progresso (turno, feed, deltas de relação).
+    const inicial = estadoInicial();
+    set({
+      estado: {
+        ...salvo,
+        divisoes: inicial.divisoes,
+        relacoes: { ...inicial.relacoes, ...salvo.relacoes },
+        pendencias: inicial.pendencias.map((p) => {
+          const antiga = salvo.pendencias.find((x) => x.id === p.id);
+          return antiga ? { ...p, passo: antiga.passo, ativa: antiga.ativa } : p;
+        }),
+      },
+    });
   },
 
   enviar: async (acao: string) => {
