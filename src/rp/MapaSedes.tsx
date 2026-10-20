@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 import "leaflet/dist/leaflet.css";
 import {
@@ -55,7 +55,7 @@ function Pin({
   ativo: boolean;
   onSelecionar: (id: string) => void;
 }) {
-  const pos = useMemo(() => paraV3(sede.lat, sede.lon, 2.0), [sede]);
+  const pos = useMemo(() => paraV3(sede.lat, sede.lon, 2.02), [sede]);
   const quaternion = useMemo(() => {
     const q = new THREE.Quaternion();
     q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pos.clone().normalize());
@@ -92,6 +92,26 @@ function Pin({
   );
 }
 
+/**
+ * Terra real — textura equirretangular (NASA Blue Marble) numa esfera padrão.
+ * A esfera do three tem longitude 0 voltada pra +X; giramos -90° em Y pra
+ * alinhar com o sistema dos pins (lon 0 = +Z), senão os continentes ficam
+ * deslocados 90° das sedes.
+ */
+function Terra() {
+  const textura = useLoader(THREE.TextureLoader, "/textures/earth.jpg");
+  useMemo(() => {
+    textura.colorSpace = THREE.SRGBColorSpace;
+    textura.anisotropy = 4;
+  }, [textura]);
+  return (
+    <mesh rotation={[0, -Math.PI / 2, 0]}>
+      <sphereGeometry args={[2, 64, 40]} />
+      <meshStandardMaterial map={textura} roughness={0.95} metalness={0} />
+    </mesh>
+  );
+}
+
 function Globo({
   selecionado,
   onSelecionar,
@@ -121,14 +141,11 @@ function Globo({
 
   return (
     <group ref={grupo}>
+      <Terra />
+      {/* halo atmosférico — só a borda aparece fora do planeta */}
       <mesh>
-        <sphereGeometry args={[2, 40, 26]} />
-        <meshBasicMaterial color="#2563eb" wireframe transparent opacity={0.22} />
-      </mesh>
-      {/* brilho interno do planeta */}
-      <mesh>
-        <sphereGeometry args={[1.94, 32, 20]} />
-        <meshBasicMaterial color="#1e3a8a" transparent opacity={0.35} />
+        <sphereGeometry args={[2.1, 48, 32]} />
+        <meshBasicMaterial color="#60a5fa" transparent opacity={0.06} side={THREE.BackSide} />
       </mesh>
       {SEDES.map((s) => (
         <Pin key={s.id} sede={s} ativo={s.id === selecionado} onSelecionar={onSelecionar} />
@@ -281,7 +298,8 @@ export function MapaSedes({ sedeAberta, onFechar, onSelecionar }: Props) {
         <DialogHeader className="shrink-0 border-b border-border/60 bg-card px-5 py-3 text-left">
           <DialogTitle>Sedes do império · mapa 3D</DialogTitle>
           <DialogDescription className="text-xs">
-            {SEDES.length} sedes no globo — clique num ponto pra voar até a sede.
+            {SEDES.length} sedes no globo — clique num ponto pra voar até a sede. Terra: NASA Blue
+            Marble.
           </DialogDescription>
         </DialogHeader>
 
@@ -292,8 +310,12 @@ export function MapaSedes({ sedeAberta, onFechar, onSelecionar }: Props) {
               dpr={[1, 2]}
               gl={{ antialias: true, alpha: true }}
             >
-              <Estrelas />
-              <Globo selecionado={sedeAberta ?? "tower"} onSelecionar={onSelecionar} />
+              <ambientLight intensity={0.6} />
+              <directionalLight position={[4, 2.5, 4]} intensity={1.9} />
+              <Suspense fallback={null}>
+                <Estrelas />
+                <Globo selecionado={sedeAberta ?? "tower"} onSelecionar={onSelecionar} />
+              </Suspense>
             </Canvas>
           </div>
           {sede && (
