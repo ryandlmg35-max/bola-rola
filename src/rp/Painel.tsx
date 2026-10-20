@@ -8,7 +8,8 @@ import { fmtUSD } from "./engine";
 import { loreLinhas } from "./lore";
 import { Ajustes } from "./Ajustes";
 import { ChatSofia } from "./ChatSofia";
-import type { EntradaFeed } from "./types";
+import { Cena3D } from "./Cena3D";
+import type { Divisao, EntradaFeed, StatusDiv } from "./types";
 
 function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
@@ -115,6 +116,73 @@ function Cartao({ e, onEscolher }: { e: EntradaFeed; onEscolher: (r: string) => 
   );
 }
 
+const STATUS_DIV: Record<StatusDiv, { label: string; cls: string }> = {
+  estavel: { label: "Estável", cls: "border-primary/40 bg-primary/15 text-primary" },
+  crescendo: { label: "Crescendo", cls: "border-cyan-400/40 bg-cyan-500/15 text-cyan-300" },
+  prejuizo: { label: "Prejuízo", cls: "border-destructive/50 bg-destructive/15 text-destructive" },
+  instavel: { label: "Instável", cls: "border-amber-400/40 bg-amber-500/15 text-amber-300" },
+  geladeira: { label: "Na geladeira", cls: "border-slate-400/30 bg-slate-500/15 text-slate-300" },
+  congelada: { label: "Congelada", cls: "border-slate-400/30 bg-slate-500/10 text-slate-400" },
+  operando: { label: "Em operação", cls: "border-violet-400/40 bg-violet-500/15 text-violet-300" },
+};
+
+/** Card compacto de divisão: nome, CEO, sede, receita/lucro por mês, status e nota. */
+function CartaoDiv({ d }: { d: Divisao }) {
+  const s = STATUS_DIV[d.status];
+  return (
+    <div className="rounded-xl border border-border/50 bg-background/40 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-bold leading-tight">{d.nome}</div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {d.ceo === "—" ? (
+              "Sem CEO nomeado"
+            ) : (
+              <>
+                <span className="font-semibold text-foreground/80">{d.ceo}</span> · CEO
+              </>
+            )}
+          </div>
+        </div>
+        <span
+          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${s.cls}`}
+        >
+          {s.label}
+        </span>
+      </div>
+      <div className="mt-2 grid grid-cols-3 gap-1 border-t border-border/40 pt-2 text-center">
+        <div>
+          <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Sede</div>
+          <div className="text-[12px] font-semibold">{d.pais}</div>
+        </div>
+        <div>
+          <div className="text-[9px] uppercase tracking-wide text-muted-foreground">
+            Receita/mês
+          </div>
+          <div className="text-[12px] font-semibold text-primary">{d.receita}</div>
+        </div>
+        <div>
+          <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Lucro/mês</div>
+          <div
+            className={`text-[12px] font-semibold ${
+              d.lucro.startsWith("-")
+                ? "text-destructive"
+                : d.lucro === "—"
+                  ? "text-muted-foreground"
+                  : "text-cyan-300"
+            }`}
+          >
+            {d.lucro}
+          </div>
+        </div>
+      </div>
+      <p className="mt-1.5 truncate text-[11px] text-muted-foreground" title={d.nota}>
+        {d.nota}
+      </p>
+    </div>
+  );
+}
+
 export function Painel() {
   const { estado, pensando, enviar, escolher, hidratar } = useRP();
   const [texto, setTexto] = useState("");
@@ -190,8 +258,40 @@ export function Painel() {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-7xl gap-4 px-4 py-5 xl:grid-cols-[260px_1fr_260px]">
-        {/* ESQUERDA — PENDÊNCIAS + DIVISÕES */}
+      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-1 pt-5">
+        {/* HERO 3D — torre + globo do império */}
+        <section className="relative h-44 overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-blue-950/70 via-card to-background">
+          <Cena3D />
+          <div className="relative z-10 flex h-full flex-col justify-center gap-1 px-7">
+            <div className="text-2xl font-black tracking-tight">
+              O mundo gira em volta da torre.
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Holding de $3,8tri · {estado.divisoes.length} divisões · Ryan Dalbert, Chairman
+            </div>
+          </div>
+        </section>
+
+        {/* DIVISÕES — organizadas */}
+        <section className="rounded-2xl border border-border/60 bg-card/60 p-4">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-1">
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+              Divisões · Space Group
+            </h3>
+            <span className="text-[11px] text-muted-foreground">
+              CEO · sede · receita e lucro por mês · status atual
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+            {estado.divisoes.map((d) => (
+              <CartaoDiv key={d.id} d={d} />
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <main className="mx-auto grid max-w-7xl gap-4 px-4 pb-8 xl:grid-cols-[260px_1fr_260px]">
+        {/* ESQUERDA — PENDÊNCIAS */}
         <aside className="space-y-4">
           <section className="rounded-2xl border border-border/60 bg-card p-4">
             <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-primary">
@@ -222,20 +322,6 @@ export function Painel() {
                   Nada pendente. O mundo é seu.
                 </div>
               )}
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-border/60 bg-card p-4">
-            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-primary">
-              Divisões
-            </h3>
-            <div className="space-y-2">
-              {estado.divisoes.map((d) => (
-                <div key={d.id} className="text-[12px] leading-snug">
-                  <span className="font-semibold">{d.nome}</span>
-                  <span className="block text-muted-foreground">{d.nota}</span>
-                </div>
-              ))}
             </div>
           </section>
         </aside>

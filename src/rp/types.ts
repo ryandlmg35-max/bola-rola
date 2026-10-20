@@ -59,9 +59,21 @@ export interface Pendencia {
   ativa: boolean;
 }
 
+export type StatusDiv =
+  "estavel" | "crescendo" | "prejuizo" | "instavel" | "geladeira" | "congelada" | "operando";
+
 export interface Divisao {
   id: string;
   nome: string;
+  ceo: string;
+  /** País sede com bandeira. */
+  pais: string;
+  /** Receita por mês (string formatada, "—" se não informada no RP). */
+  receita: string;
+  /** Lucro por mês (string formatada; começa com "-" se prejuízo). */
+  lucro: string;
+  status: StatusDiv;
+  /** Uma linha de contexto — pendência principal da divisão. */
   nota: string;
 }
 
