@@ -10,6 +10,35 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRP } from "./store";
+import { humorSofia, type TomSofia } from "./sofia";
+
+const HUMOR_CLS: Record<TomSofia, string> = {
+  limite: "border-destructive/50 bg-destructive/15 text-destructive",
+  congelada: "border-slate-400/30 bg-slate-500/15 text-slate-300",
+  derretendo: "border-rose-400/40 bg-rose-500/15 text-rose-300",
+  calorosa: "border-rose-400/30 bg-rose-500/10 text-rose-200",
+  tensa: "border-amber-400/40 bg-amber-500/15 text-amber-300",
+  auditora: "border-primary/40 bg-primary/15 text-primary",
+};
+
+function Medidor({ label, valor, cor }: { label: string; valor: number; cor: string }) {
+  return (
+    <div className="min-w-0 flex-1">
+      <div className="flex items-baseline justify-between gap-1">
+        <span className="truncate text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </span>
+        <span className="text-[10px] font-semibold text-muted-foreground">{valor}</span>
+      </div>
+      <div className="mt-0.5 h-1.5 rounded-full bg-muted/30">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${cor}`}
+          style={{ width: `${valor}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   aberto: boolean;
@@ -20,6 +49,19 @@ export function ChatSofia({ aberto, onFechar }: Props) {
   const { estado, sofiaPensando, falarComSofia } = useRP();
   const [texto, setTexto] = useState("");
   const listaRef = useRef<HTMLDivElement>(null);
+  const humor = humorSofia(estado.sofia);
+  const corEstresse =
+    estado.sofia.estresse >= 70
+      ? "bg-destructive"
+      : estado.sofia.estresse >= 45
+        ? "bg-amber-400"
+        : "bg-primary";
+  const corEnergia =
+    estado.sofia.energia >= 55
+      ? "bg-rose-400"
+      : estado.sofia.energia >= 25
+        ? "bg-primary"
+        : "bg-slate-400";
 
   useEffect(() => {
     const el = listaRef.current;
@@ -50,6 +92,15 @@ export function ChatSofia({ aberto, onFechar }: Props) {
               ? "Respondendo por IA, com o estado real do império."
               : "Sofia local — números reais do caixa, sem chave de API."}
           </DialogDescription>
+          <div className="mt-2 flex items-center gap-3">
+            <Medidor label="Estresse" valor={estado.sofia.estresse} cor={corEstresse} />
+            <Medidor label="Energia sexual" valor={estado.sofia.energia} cor={corEnergia} />
+            <span
+              className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${HUMOR_CLS[humor.tom]}`}
+            >
+              {humor.label}
+            </span>
+          </div>
         </DialogHeader>
 
         <div ref={listaRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">

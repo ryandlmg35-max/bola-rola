@@ -3,7 +3,7 @@ import type { ConfigIA, EntradaFeed, EstadoRP, MsgChat } from "./types";
 import { estadoInicial } from "./estadoInicial";
 import { LIMITE_CARTAO, aplicar } from "./engine";
 import { narrarPorIA, responderSofiaIA } from "./narrador";
-import { respostaLocalSofia } from "./sofia";
+import { respostaLocalSofia, deltaSofia } from "./sofia";
 
 const CHAVE_LS = "space-mr-rp-v1";
 
@@ -57,6 +57,14 @@ export const useRP = create<LojaRP>((set, get) => ({
         ...salvo,
         cartao: typeof salvo.cartao === "number" ? salvo.cartao : inicial.cartao,
         chatSofia: Array.isArray(salvo.chatSofia) ? salvo.chatSofia : inicial.chatSofia,
+        sofia: {
+          estresse:
+            typeof salvo.sofia?.estresse === "number"
+              ? salvo.sofia.estresse
+              : inicial.sofia.estresse,
+          energia:
+            typeof salvo.sofia?.energia === "number" ? salvo.sofia.energia : inicial.sofia.energia,
+        },
         divisoes: inicial.divisoes,
         relacoes: { ...inicial.relacoes, ...salvo.relacoes },
         pendencias: inicial.pendencias.map((p) => {
@@ -111,11 +119,20 @@ export const useRP = create<LojaRP>((set, get) => ({
     const comRyan = [...base.chatSofia, msgRyan];
     set({ estado: { ...base, chatSofia: comRyan }, sofiaPensando: true });
 
+    // o que o Sam falou mexe no humor dela — determinístico, igual pros dois modos
+    const d = deltaSofia(t);
+    const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+    const sofiaNovo = {
+      estresse: clamp(base.sofia.estresse + d.estresse),
+      energia: clamp(base.sofia.energia + d.energia),
+    };
+    const baseComHumor: EstadoRP = { ...base, sofia: sofiaNovo, chatSofia: comRyan };
+
     let resposta: string | null = null;
     if (base.config.habilitada && base.config.apiKey) {
-      resposta = await responderSofiaIA(base.config, base, comRyan, t);
+      resposta = await responderSofiaIA(base.config, baseComHumor, comRyan, t);
     }
-    if (!resposta) resposta = respostaLocalSofia(base, t);
+    if (!resposta) resposta = respostaLocalSofia(baseComHumor, t);
 
     const msgSofia: MsgChat = {
       id: `s-${Date.now()}`,
@@ -126,6 +143,7 @@ export const useRP = create<LojaRP>((set, get) => ({
     const atual = get().estado;
     const novo: EstadoRP = {
       ...atual,
+      sofia: sofiaNovo,
       chatSofia: [...atual.chatSofia, msgSofia].slice(-200),
     };
     salvar(novo);

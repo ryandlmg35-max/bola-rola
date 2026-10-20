@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { estadoInicial } from "./src/rp/estadoInicial";
 import { aplicar, fmtUSD, interpretar } from "./src/rp/engine";
 import { buscarLore, loreLinhas } from "./src/rp/lore";
-import { respostaLocalSofia } from "./src/rp/sofia";
+import { respostaLocalSofia, deltaSofia, humorSofia } from "./src/rp/sofia";
 import { SEDES, sedePorId, totalQuadro } from "./src/rp/sedes";
+import { MEMBROS, BENS, MOMENTOS } from "./src/rp/familia";
 
 describe("engine do RP", () => {
   it("classifica ação e lê o valor em bilhões", () => {
@@ -141,6 +142,62 @@ describe("sedes (mapa 3D)", () => {
       expect(s.lon).toBeGreaterThanOrEqual(-180);
       expect(s.lon).toBeLessThanOrEqual(180);
     }
+  });
+});
+
+describe("humor da Sofia (estresse & energia)", () => {
+  it("gasto sobe estresse e derruba energia; carinho faz o contrário", () => {
+    const gasto = deltaSofia("vou gastar 500 milhões na festa da Ilha MR");
+    expect(gasto.estresse).toBeGreaterThan(0);
+    expect(gasto.energia).toBeLessThan(0);
+
+    const amor = deltaSofia("te amo, Sofia, você é linda");
+    expect(amor.energia).toBeGreaterThan(0);
+    expect(amor.estresse).toBeLessThanOrEqual(0);
+  });
+
+  it("faixas de humor batem com os níveis", () => {
+    expect(humorSofia({ estresse: 80, energia: 50 }).tom).toBe("limite");
+    expect(humorSofia({ estresse: 30, energia: 20 }).tom).toBe("congelada");
+    expect(humorSofia({ estresse: 20, energia: 80 }).tom).toBe("derretendo");
+    expect(humorSofia({ estresse: 40, energia: 60 }).tom).toBe("calorosa");
+    expect(humorSofia({ estresse: 50, energia: 40 }).tom).toBe("auditora");
+  });
+
+  it("tom muda a resposta local com o mesmo texto", () => {
+    const base = estadoInicial();
+    const derretendo = {
+      ...base,
+      sofia: { estresse: 20, energia: 80 },
+    };
+    const congelada = {
+      ...base,
+      sofia: { estresse: 30, energia: 20 },
+    };
+
+    const a = respostaLocalSofia(derretendo, "bom dia, Sofia");
+    const b = respostaLocalSofia(congelada, "bom dia, Sofia");
+
+    expect(a).not.toBe(b);
+    expect(a).toMatch(/vem cá|saudade/);
+    expect(b).toMatch(/silêncio|não é hora/);
+  });
+});
+
+describe("família MR", () => {
+  it("o clã tem os seis nomes canônicos", () => {
+    const ids = MEMBROS.map((m) => m.id);
+    expect(ids).toEqual(["ryan", "sofia", "noah", "chloe", "isabella", "beatriz"]);
+    for (const m of MEMBROS) {
+      expect(m.nome.length).toBeGreaterThan(2);
+      expect(m.nota.length).toBeGreaterThan(20);
+    }
+  });
+
+  it("dinastia e momentos estão preenchidos", () => {
+    expect(BENS.length).toBeGreaterThanOrEqual(4);
+    expect(MOMENTOS.length).toBeGreaterThanOrEqual(5);
+    expect(BENS.some((b) => b.titulo.includes("Noah"))).toBe(true);
   });
 });
 

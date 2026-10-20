@@ -1,4 +1,4 @@
-import type { EstadoRP } from "./types";
+import type { EstadoRP, SofiaStatus } from "./types";
 import { fmtUSD } from "./engine";
 import { rng, sorteia } from "./rng";
 
@@ -7,7 +7,7 @@ import { rng, sorteia } from "./rng";
  * reais do estado (caixa, cartão, heat, moral). Voz dela — auditora fria,
  * "nota fiscal", "Reestruturação de Passivo" — 1 a 3 frases, formato chat.
  */
-export function respostaLocalSofia(estado: EstadoRP, texto: string): string {
+function baseSofia(estado: EstadoRP, texto: string): string {
   const t = texto.toLowerCase();
   const pendentes = estado.pendencias.filter((p) => p.ativa).length;
   const r = rng(estado.seed + estado.turno * 17 + texto.length * 31);
@@ -73,4 +73,86 @@ export function respostaLocalSofia(estado: EstadoRP, texto: string): string {
     `Moral do grupo em ${estado.moral}, povo em ${estado.aprovacao}, heat em ${estado.heat}. O mundo tá estável por enquanto. O que você quer estragar primeiro?`,
     "Reestruturação de Passivo é o meu vocabulário pra 'você gastou de novo'. Continua, eu aguento — só traz nota fiscal.",
   ]);
+}
+
+export interface DeltaFala {
+  estresse: number;
+  energia: number;
+}
+
+/**
+ * O que cada mensagem do Sam faz com a Sofia — as deltas são deterministicas
+ * e valem tanto no modo local quanto no modo IA (o store aplica igual).
+ */
+export function deltaSofia(texto: string): DeltaFala {
+  const t = texto.toLowerCase();
+  const d: DeltaFala = { estresse: 0, energia: 0 };
+
+  if (/(gast|compr|pag|invest|liber|orçament|orcament|prejuízo|prejuizo)/.test(t)) {
+    d.estresse += 6;
+    d.energia -= 4;
+  }
+  if (/(crise|vazou|doj|investiga|process|multa|escândalo|escandalo|imprensa|heat)/.test(t)) {
+    d.estresse += 8;
+  }
+  if (/(auditori|relatóri|relatori|nota fiscal|cláusula|clausula)/.test(t)) {
+    d.estresse += 4;
+  }
+  if (/(noah|filho|família|familia|jantar|ceia|casa|greenwich|almoço|almoco)/.test(t)) {
+    d.estresse -= 6;
+    d.energia += 4;
+  }
+  if (/(te amo|amor|linda|gostosa|beij|cama|flert|paixão|paixao|saudade|dormir juntos)/.test(t)) {
+    d.energia += 10;
+    d.estresse -= 3;
+  }
+  if (/(desculpa|obrigad|orgulho|confio|parabéns|parabens)/.test(t)) {
+    d.estresse -= 4;
+  }
+  return d;
+}
+
+export type TomSofia = "limite" | "congelada" | "derretendo" | "calorosa" | "tensa" | "auditora";
+
+/** Faixa de humor visível no chat — derivada dos dois níveis. */
+export function humorSofia(s: SofiaStatus): { label: string; tom: TomSofia } {
+  if (s.estresse >= 75) return { label: "No limite", tom: "limite" };
+  if (s.energia <= 25) return { label: "Congelada", tom: "congelada" };
+  if (s.estresse <= 30 && s.energia >= 70) return { label: "Derretendo", tom: "derretendo" };
+  if (s.energia >= 55 && s.estresse <= 45) return { label: "Calorosa", tom: "calorosa" };
+  if (s.estresse >= 60) return { label: "Tensa", tom: "tensa" };
+  return { label: "Auditora", tom: "auditora" };
+}
+
+/** Frase que fecha a resposta e entrega o humor — 1 linha, nunca fala de números. */
+function tomSofia(s: SofiaStatus, r: () => number): string {
+  switch (humorSofia(s).tom) {
+    case "limite":
+      return sorteia(r, [
+        " E eu não tô dormindo, Ryan. Não testa.",
+        " Aliás, se mais uma planilha encostar na minha mesa, eu demito o Excel.",
+      ]);
+    case "congelada":
+      return sorteia(r, [
+        " E não, não é hora. O extrato não fecha sozinho.",
+        " Me dá silêncio até o fim do dia, Ryan.",
+      ]);
+    case "derretendo":
+      return sorteia(r, [
+        " Agora para com isso e vem cá.",
+        " Fecha esse laptop. Eu tô com saudade.",
+      ]);
+    case "calorosa":
+      return " Mas continua falando, que eu gosto do teu risco.";
+    case "tensa":
+      return " E antes que você pergunte: não, eu ainda não almocei.";
+    default:
+      return "";
+  }
+}
+
+/** Resposta completa: conteúdo do assunto + assinatura do humor atual. */
+export function respostaLocalSofia(estado: EstadoRP, texto: string): string {
+  const r = rng(estado.seed + estado.turno * 23 + texto.length * 7);
+  return baseSofia(estado, texto) + tomSofia(estado.sofia, r);
 }

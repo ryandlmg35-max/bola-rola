@@ -91,6 +91,13 @@ export interface MsgChat {
   turno: number;
 }
 
+export interface SofiaStatus {
+  /** 0..100 — sobe com gasto/crise/auditoria, desce com família e carinho. */
+  estresse: number;
+  /** 0..100 — energia sexual: sobe com flerte, cai com cobrança e sono. */
+  energia: number;
+}
+
 export interface EstadoRP {
   turno: number;
   data: string;
@@ -109,5 +116,6 @@ export interface EstadoRP {
   pendencias: Pendencia[];
   feed: EntradaFeed[];
   chatSofia: MsgChat[];
+  sofia: SofiaStatus;
   config: ConfigIA;
 }

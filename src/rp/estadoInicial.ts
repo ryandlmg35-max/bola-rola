@@ -401,6 +401,7 @@ export function estadoInicial(): EstadoRP {
           "Bom dia. O caixa fechou em $13,3 bi, o cartão corporativo tá com $458,5M de limite e a auditoria da cláusula 14.8 tá na sua mesa. Antes de qualquer ordem nova eu quero saber uma coisa só: você vai dormir direito ou vai gastar?",
       },
     ],
+    sofia: { estresse: 40, energia: 55 },
     config: {
       habilitada: false,
       baseUrl: "https://api.openai.com/v1",

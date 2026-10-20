@@ -10,6 +10,7 @@ import { Ajustes } from "./Ajustes";
 import { ChatSofia } from "./ChatSofia";
 import { Cena3D } from "./Cena3D";
 import { MapaSedes } from "./MapaSedes";
+import { FamiliaMR } from "./FamiliaMR";
 import type { Divisao, EntradaFeed, StatusDiv } from "./types";
 
 function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
@@ -194,6 +195,7 @@ export function Painel() {
   const [ajustesAbertos, setAjustesAbertos] = useState(false);
   const [sofiaAberta, setSofiaAberta] = useState(false);
   const [sedeAberta, setSedeAberta] = useState<string | null>(null);
+  const [aba, setAba] = useState<"imperio" | "familia">("imperio");
   const feedRef = useRef<HTMLDivElement>(null);
   const hidratado = useRef(false);
 
@@ -265,152 +267,190 @@ export function Painel() {
       </header>
 
       <div className="mx-auto max-w-7xl space-y-4 px-4 pb-1 pt-5">
-        {/* HERO 3D — torre + globo do império */}
-        <section className="relative h-44 overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-blue-950/70 via-card to-background">
-          <Cena3D />
-          <div className="relative z-10 flex h-full flex-col justify-center gap-1 px-7">
-            <div className="text-2xl font-black tracking-tight">
-              O mundo gira em volta da torre.
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Holding de $3,8tri · {estado.divisoes.length} divisões · Ryan Dalbert, Chairman
-            </div>
-            <button
-              type="button"
-              onClick={() => setSedeAberta("tower")}
-              className="mt-1.5 w-fit cursor-pointer rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
-            >
-              🏢 Space Group Tower — sede principal, Nova York
-            </button>
-          </div>
-        </section>
+        {/* ABAS */}
+        <div className="inline-flex rounded-xl border border-border/60 bg-card/60 p-1">
+          <button
+            type="button"
+            onClick={() => setAba("imperio")}
+            className={`cursor-pointer rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${
+              aba === "imperio"
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Império Space
+          </button>
+          <button
+            type="button"
+            onClick={() => setAba("familia")}
+            className={`cursor-pointer rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${
+              aba === "familia"
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Família MR
+          </button>
+        </div>
 
-        {/* DIVISÕES — organizadas */}
-        <section className="rounded-2xl border border-border/60 bg-card/60 p-4">
-          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-1">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-primary">
-              Divisões · Space Group
-            </h3>
-            <span className="text-[11px] text-muted-foreground">
-              CEO · sede · receita e lucro por mês · status atual
-            </span>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-            {estado.divisoes.map((d) => (
-              <CartaoDiv key={d.id} d={d} onClicar={() => setSedeAberta(d.id)} />
-            ))}
-          </div>
-        </section>
+        {aba === "imperio" && (
+          <>
+            {/* HERO 3D — torre + globo do império */}
+            <section className="relative h-44 overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-blue-950/70 via-card to-background">
+              <Cena3D />
+              <div className="relative z-10 flex h-full flex-col justify-center gap-1 px-7">
+                <div className="text-2xl font-black tracking-tight">
+                  O mundo gira em volta da torre.
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Holding de $3,8tri · {estado.divisoes.length} divisões · Ryan Dalbert, Chairman
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSedeAberta("tower")}
+                  className="mt-1.5 w-fit cursor-pointer rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                >
+                  🏢 Space Group Tower — sede principal, Nova York
+                </button>
+              </div>
+            </section>
+
+            {/* DIVISÕES — organizadas */}
+            <section className="rounded-2xl border border-border/60 bg-card/60 p-4">
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-1">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+                  Divisões · Space Group
+                </h3>
+                <span className="text-[11px] text-muted-foreground">
+                  CEO · sede · receita e lucro por mês · status atual
+                </span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                {estado.divisoes.map((d) => (
+                  <CartaoDiv key={d.id} d={d} onClicar={() => setSedeAberta(d.id)} />
+                ))}
+              </div>
+            </section>
+          </>
+        )}
       </div>
 
-      <main className="mx-auto grid max-w-7xl gap-4 px-4 pb-8 xl:grid-cols-[260px_1fr_260px]">
-        {/* ESQUERDA — PENDÊNCIAS */}
-        <aside className="space-y-4">
-          <section className="rounded-2xl border border-border/60 bg-card p-4">
-            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-primary">
-              Pendências do império
-            </h3>
-            <div className="space-y-3">
-              {vivas.map((p) => (
-                <div
-                  key={p.id}
-                  className="rounded-lg border border-border/50 bg-background/40 p-2.5"
-                >
-                  <div className="text-[13px] font-semibold">{p.nome}</div>
-                  <div className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                    {p.descricao}
+      {aba === "imperio" ? (
+        <main className="mx-auto grid max-w-7xl gap-4 px-4 pb-8 xl:grid-cols-[260px_1fr_260px]">
+          {/* ESQUERDA — PENDÊNCIAS */}
+          <aside className="space-y-4">
+            <section className="rounded-2xl border border-border/60 bg-card p-4">
+              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-primary">
+                Pendências do império
+              </h3>
+              <div className="space-y-3">
+                {vivas.map((p) => (
+                  <div
+                    key={p.id}
+                    className="rounded-lg border border-border/50 bg-background/40 p-2.5"
+                  >
+                    <div className="text-[13px] font-semibold">{p.nome}</div>
+                    <div className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                      {p.descricao}
+                    </div>
+                    <div className="mt-1.5 flex gap-1">
+                      {p.etapas.map((_, i) => (
+                        <div
+                          key={i}
+                          className={`h-1.5 flex-1 rounded-full ${i <= p.passo ? "bg-primary" : "bg-muted/40"}`}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <div className="mt-1.5 flex gap-1">
-                    {p.etapas.map((_, i) => (
-                      <div
-                        key={i}
-                        className={`h-1.5 flex-1 rounded-full ${i <= p.passo ? "bg-primary" : "bg-muted/40"}`}
-                      />
-                    ))}
+                ))}
+                {vivas.length === 0 && (
+                  <div className="text-[12px] text-muted-foreground">
+                    Nada pendente. O mundo é seu.
                   </div>
-                </div>
+                )}
+              </div>
+            </section>
+          </aside>
+
+          {/* CENTRO — FEED + AÇÃO */}
+          <section className="flex min-h-[60vh] flex-col gap-4">
+            <div ref={feedRef} className="flex-1 space-y-4">
+              {estado.feed.map((e) => (
+                <Cartao key={e.id} e={e} onEscolher={escolher} />
               ))}
-              {vivas.length === 0 && (
-                <div className="text-[12px] text-muted-foreground">
-                  Nada pendente. O mundo é seu.
+              {pensando && (
+                <div className="rounded-2xl border border-border/60 bg-card p-6 text-center text-sm text-muted-foreground">
+                  O Axiom tá pensando o próximo movimento…
                 </div>
               )}
             </div>
-          </section>
-        </aside>
 
-        {/* CENTRO — FEED + AÇÃO */}
-        <section className="flex min-h-[60vh] flex-col gap-4">
-          <div ref={feedRef} className="flex-1 space-y-4">
-            {estado.feed.map((e) => (
-              <Cartao key={e.id} e={e} onEscolher={escolher} />
-            ))}
-            {pensando && (
-              <div className="rounded-2xl border border-border/60 bg-card p-6 text-center text-sm text-muted-foreground">
-                O Axiom tá pensando o próximo movimento…
+            <div className="sticky bottom-3 z-20 rounded-2xl border border-primary/30 bg-card/95 p-3 shadow-2xl shadow-black/40 backdrop-blur">
+              <Textarea
+                value={texto}
+                onChange={(ev) => setTexto(ev.target.value)}
+                onKeyDown={(ev) => {
+                  if (ev.key === "Enter" && !ev.shiftKey) {
+                    ev.preventDefault();
+                    void mandar();
+                  }
+                }}
+                placeholder="O que você manda fazer, boss man?  (ex.: gastar 500 milhões na Ilha MR · chamar o INDEX · acelerar a PEC)"
+                className="mb-2 min-h-[64px] resize-none bg-background/60"
+                rows={2}
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-muted-foreground">
+                  Enter envia · Shift+Enter quebra linha · tudo salvo no navegador
+                </span>
+                <Button
+                  size="sm"
+                  onClick={() => void mandar()}
+                  disabled={pensando || !texto.trim()}
+                >
+                  <Send className="mr-1 h-4 w-4" /> MANDAR
+                </Button>
               </div>
-            )}
-          </div>
-
-          <div className="sticky bottom-3 z-20 rounded-2xl border border-primary/30 bg-card/95 p-3 shadow-2xl shadow-black/40 backdrop-blur">
-            <Textarea
-              value={texto}
-              onChange={(ev) => setTexto(ev.target.value)}
-              onKeyDown={(ev) => {
-                if (ev.key === "Enter" && !ev.shiftKey) {
-                  ev.preventDefault();
-                  void mandar();
-                }
-              }}
-              placeholder="O que você manda fazer, boss man?  (ex.: gastar 500 milhões na Ilha MR · chamar o INDEX · acelerar a PEC)"
-              className="mb-2 min-h-[64px] resize-none bg-background/60"
-              rows={2}
-            />
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground">
-                Enter envia · Shift+Enter quebra linha · tudo salvo no navegador
-              </span>
-              <Button size="sm" onClick={() => void mandar()} disabled={pensando || !texto.trim()}>
-                <Send className="mr-1 h-4 w-4" /> MANDAR
-              </Button>
-            </div>
-          </div>
-        </section>
-
-        {/* DIREITA — RELAÇÕES + MEMÓRIA */}
-        <aside className="space-y-4">
-          <section className="rounded-2xl border border-border/60 bg-card p-4">
-            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-primary">
-              Vestiário & aliados
-            </h3>
-            <div className="space-y-2">
-              {pares.map(([nome, v]) => (
-                <Barra
-                  key={nome}
-                  label={nome}
-                  valor={Math.max(0, v)}
-                  cor={v >= 70 ? "bg-primary" : v >= 40 ? "bg-ouro" : "bg-destructive"}
-                />
-              ))}
             </div>
           </section>
 
-          <section className="rounded-2xl border border-border/60 bg-card p-4">
-            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-primary">
-              Memória do mundo
-            </h3>
-            <p className="text-[12px] leading-snug text-muted-foreground">
-              roleplat.txt inteiro embutido — {loreLinhas.toLocaleString("pt-BR")} linhas, oculto da
-              interface, usado como contexto da IA narradora em cada turno.
-            </p>
-            <Badge variant="outline" className="mt-2 text-[10px] text-muted-foreground">
-              {estado.config.habilitada && estado.config.apiKey
-                ? `IA ON · ${estado.config.modelo}`
-                : "IA OFF · engine local"}
-            </Badge>
-          </section>
-        </aside>
-      </main>
+          {/* DIREITA — RELAÇÕES + MEMÓRIA */}
+          <aside className="space-y-4">
+            <section className="rounded-2xl border border-border/60 bg-card p-4">
+              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-primary">
+                Vestiário & aliados
+              </h3>
+              <div className="space-y-2">
+                {pares.map(([nome, v]) => (
+                  <Barra
+                    key={nome}
+                    label={nome}
+                    valor={Math.max(0, v)}
+                    cor={v >= 70 ? "bg-primary" : v >= 40 ? "bg-ouro" : "bg-destructive"}
+                  />
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-border/60 bg-card p-4">
+              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-primary">
+                Memória do mundo
+              </h3>
+              <p className="text-[12px] leading-snug text-muted-foreground">
+                roleplat.txt inteiro embutido — {loreLinhas.toLocaleString("pt-BR")} linhas, oculto
+                da interface, usado como contexto da IA narradora em cada turno.
+              </p>
+              <Badge variant="outline" className="mt-2 text-[10px] text-muted-foreground">
+                {estado.config.habilitada && estado.config.apiKey
+                  ? `IA ON · ${estado.config.modelo}`
+                  : "IA OFF · engine local"}
+              </Badge>
+            </section>
+          </aside>
+        </main>
+      ) : (
+        <FamiliaMR onAbrirSofia={() => setSofiaAberta(true)} />
+      )}
 
       <Ajustes aberto={ajustesAbertos} onFechar={() => setAjustesAbertos(false)} />
       <ChatSofia aberto={sofiaAberta} onFechar={() => setSofiaAberta(false)} />
