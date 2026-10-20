@@ -3,6 +3,7 @@ import { estadoInicial } from "./src/rp/estadoInicial";
 import { aplicar, fmtUSD, interpretar } from "./src/rp/engine";
 import { buscarLore, loreLinhas } from "./src/rp/lore";
 import { respostaLocalSofia } from "./src/rp/sofia";
+import { SEDES, sedePorId, totalQuadro } from "./src/rp/sedes";
 
 describe("engine do RP", () => {
   it("classifica ação e lê o valor em bilhões", () => {
@@ -118,6 +119,28 @@ describe("chat da Sofia", () => {
     const st = estadoInicial();
     const r = respostaLocalSofia(st, "como tá o Noah?");
     expect(r).toMatch(/Noah|Heritage|família/);
+  });
+});
+
+describe("sedes (mapa 3D)", () => {
+  it("toda divisão tem uma sede, e a torre é a principal", () => {
+    for (const d of estadoInicial().divisoes) {
+      expect(sedePorId(d.id), `divisão ${d.id} sem sede`).toBeDefined();
+    }
+    const torre = sedePorId("tower");
+    expect(torre).toBeDefined();
+    expect(torre!.cidade).toBe("Nova York");
+    expect(totalQuadro(torre!)).toBeGreaterThan(1000);
+  });
+
+  it("quadro tem funcionários somáveis e coordenadas válidas", () => {
+    for (const s of SEDES) {
+      expect(totalQuadro(s)).toBeGreaterThan(0);
+      expect(s.lat).toBeGreaterThanOrEqual(-90);
+      expect(s.lat).toBeLessThanOrEqual(90);
+      expect(s.lon).toBeGreaterThanOrEqual(-180);
+      expect(s.lon).toBeLessThanOrEqual(180);
+    }
   });
 });
 

@@ -9,6 +9,7 @@ import { loreLinhas } from "./lore";
 import { Ajustes } from "./Ajustes";
 import { ChatSofia } from "./ChatSofia";
 import { Cena3D } from "./Cena3D";
+import { MapaSedes } from "./MapaSedes";
 import type { Divisao, EntradaFeed, StatusDiv } from "./types";
 
 function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
@@ -126,11 +127,15 @@ const STATUS_DIV: Record<StatusDiv, { label: string; cls: string }> = {
   operando: { label: "Em operação", cls: "border-violet-400/40 bg-violet-500/15 text-violet-300" },
 };
 
-/** Card compacto de divisão: nome, CEO, sede, receita/lucro por mês, status e nota. */
-function CartaoDiv({ d }: { d: Divisao }) {
+/** Card de divisão — clique abre o mapa 3D da sede. */
+function CartaoDiv({ d, onClicar }: { d: Divisao; onClicar: () => void }) {
   const s = STATUS_DIV[d.status];
   return (
-    <div className="rounded-xl border border-border/50 bg-background/40 p-3">
+    <button
+      type="button"
+      onClick={onClicar}
+      className="w-full cursor-pointer rounded-xl border border-border/50 bg-background/40 p-3 text-left transition-colors hover:border-primary/50 hover:bg-background/70"
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="truncate text-[13px] font-bold leading-tight">{d.nome}</div>
@@ -179,7 +184,7 @@ function CartaoDiv({ d }: { d: Divisao }) {
       <p className="mt-1.5 truncate text-[11px] text-muted-foreground" title={d.nota}>
         {d.nota}
       </p>
-    </div>
+    </button>
   );
 }
 
@@ -188,6 +193,7 @@ export function Painel() {
   const [texto, setTexto] = useState("");
   const [ajustesAbertos, setAjustesAbertos] = useState(false);
   const [sofiaAberta, setSofiaAberta] = useState(false);
+  const [sedeAberta, setSedeAberta] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const hidratado = useRef(false);
 
@@ -269,6 +275,13 @@ export function Painel() {
             <div className="text-sm text-muted-foreground">
               Holding de $3,8tri · {estado.divisoes.length} divisões · Ryan Dalbert, Chairman
             </div>
+            <button
+              type="button"
+              onClick={() => setSedeAberta("tower")}
+              className="mt-1.5 w-fit cursor-pointer rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+            >
+              🏢 Space Group Tower — sede principal, Nova York
+            </button>
           </div>
         </section>
 
@@ -284,7 +297,7 @@ export function Painel() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {estado.divisoes.map((d) => (
-              <CartaoDiv key={d.id} d={d} />
+              <CartaoDiv key={d.id} d={d} onClicar={() => setSedeAberta(d.id)} />
             ))}
           </div>
         </section>
@@ -401,6 +414,11 @@ export function Painel() {
 
       <Ajustes aberto={ajustesAbertos} onFechar={() => setAjustesAbertos(false)} />
       <ChatSofia aberto={sofiaAberta} onFechar={() => setSofiaAberta(false)} />
+      <MapaSedes
+        sedeAberta={sedeAberta}
+        onFechar={() => setSedeAberta(null)}
+        onSelecionar={setSedeAberta}
+      />
     </div>
   );
 }
