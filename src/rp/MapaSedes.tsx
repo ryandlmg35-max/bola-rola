@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import "leaflet/dist/leaflet.css";
 import {
   Dialog,
   DialogContent,
@@ -141,6 +142,53 @@ function formatarCoord(n: number, positivo: string, negativo: string): string {
   return `${Math.abs(n).toFixed(3)}° ${dir}`;
 }
 
+/**
+ * Mapa de rua de verdade (Leaflet + tiles CARTO escuro) pra sedes sem foto.
+ * Leaflet é importado dinâmico dentro do effect: SSR nunca toca em window.
+ */
+function MapaRua({ lat, lon, nome }: { lat: number; lon: number; nome: string }) {
+  const elRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let mapa: import("leaflet").Map | undefined;
+    let morto = false;
+
+    void (async () => {
+      const mod = (await import("leaflet")) as typeof import("leaflet") & {
+        default?: typeof import("leaflet");
+      };
+      const L = mod.default ?? mod;
+      if (morto || !elRef.current) return;
+
+      mapa = L.map(elRef.current, { scrollWheelZoom: true }).setView([lat, lon], 15);
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        subdomains: "abcd",
+        maxZoom: 19,
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      }).addTo(mapa);
+      L.circleMarker([lat, lon], {
+        radius: 9,
+        color: "#93c5fd",
+        weight: 3,
+        fillColor: "#3b82f6",
+        fillOpacity: 0.9,
+      })
+        .addTo(mapa)
+        .bindPopup(nome);
+      // o container nasce junto com o dialog — remede após a animação de abertura
+      setTimeout(() => mapa?.invalidateSize(), 300);
+    })();
+
+    return () => {
+      morto = true;
+      mapa?.remove();
+    };
+  }, [lat, lon, nome]);
+
+  return <div ref={elRef} className="absolute inset-0" />;
+}
+
 function PainelSede({ sede }: { sede: Sede }) {
   const [imgErro, setImgErro] = useState(false);
   useEffect(() => setImgErro(false), [sede.id]);
@@ -151,25 +199,33 @@ function PainelSede({ sede }: { sede: Sede }) {
     <div className="flex h-full flex-col">
       <div className="relative h-40 shrink-0 overflow-hidden border-b border-border/60">
         {sede.imagem && !imgErro ? (
-          <img
-            src={sede.imagem}
-            alt={sede.nome}
-            onError={() => setImgErro(true)}
-            className="h-full w-full object-cover"
-          />
+          <>
+            <img
+              src={sede.imagem}
+              alt={sede.nome}
+              onError={() => setImgErro(true)}
+              className="h-full w-full object-cover"
+            />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1001] bg-gradient-to-t from-background/95 to-transparent px-4 pb-2 pt-8">
+              <div className="text-base font-black leading-tight">{sede.nome}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {sede.cidade} · {sede.pais} · {formatarCoord(sede.lat, "N", "S")}{" "}
+                {formatarCoord(sede.lon, "L", "O")}
+              </div>
+            </div>
+          </>
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-blue-950/80 via-card to-background">
-            <span className="text-4xl">🏢</span>
-            <span className="text-xs text-muted-foreground">{sede.cidade}</span>
-          </div>
+          <>
+            <MapaRua lat={sede.lat} lon={sede.lon} nome={sede.nome} />
+            <div className="pointer-events-none absolute left-2 top-2 z-[1001] rounded-lg border border-border/60 bg-background/85 px-2.5 py-1.5 backdrop-blur">
+              <div className="text-[12px] font-bold leading-tight">{sede.nome}</div>
+              <div className="text-[10px] text-muted-foreground">
+                {sede.cidade} · {sede.pais} · {formatarCoord(sede.lat, "N", "S")}{" "}
+                {formatarCoord(sede.lon, "L", "O")}
+              </div>
+            </div>
+          </>
         )}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/95 to-transparent px-4 pb-2 pt-8">
-          <div className="text-base font-black leading-tight">{sede.nome}</div>
-          <div className="text-[11px] text-muted-foreground">
-            {sede.cidade} · {sede.pais} · {formatarCoord(sede.lat, "N", "S")}{" "}
-            {formatarCoord(sede.lon, "L", "O")}
-          </div>
-        </div>
       </div>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
