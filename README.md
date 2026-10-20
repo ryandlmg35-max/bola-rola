@@ -1,20 +1,24 @@
-# Bola Rola
+# SPACE · Império MR — Roleplay
 
-Crie um aplicativo web chamado “Simulador Futebol”, uma aplicação de simulação de campeonatos, não um jogo controlável. Construa uma primeira versão funcional e coerente, não apenas uma landing page ou mockup. Stack padrão Lovable (React + TypeScript + Tailwind + shadcn/ui), estado global organizado (Zustand se adequado), persistência localStorage. Interface em português brasileiro, tema escuro premium com verde gramado, responsiva para desktop/mobile, navegação por Dashboard, Campeonatos e Perfil do time.
+Simulador de roleplay do império Space: você é Ryan Dalbert, Chairman de um holding de $3,8 trilhões, e **cada ação que você escreve fecha consequências reais** — caixa, patrimônio, Space Coin, heat da imprensa, moral do vestiário e aprovação do povo se movem a cada turno, com reações em 3 camadas (mídia / mercado / povo).
 
-REQUISITOS FUNCIONAIS:
-1) Dashboard com cards de Brasil, Europa e Internacional, status de competições, temporada atual, progresso e ação “Simular tudo”.
-2) Competições nacionais: Brasil Série A (20 clubes, 38 rodadas, 4 rebaixados, 6 vagas Libertadores sendo 4 diretas + 2 preliminares, 8 Sul-Americana); Série B (20, 38, sobem 4/descem 4); Série C (20, fase única turno único de 19 rodadas, top 8 em dois quadrangulares, campeões sobem, quatro últimos descem). Copa do Brasil simplificada com 20 clubes Série A + 12 convidados, mata-mata ida/volta exceto final, campeão classifica Libertadores. Europa: Premier League, La Liga, Serie A italiana (20 clubes/38 rodadas), Bundesliga e Ligue 1 (18/34), regras de rebaixamento e vagas europeias conforme especificação fornecida pelo usuário.
-3) Competições internacionais simuladas: Champions, Europa e Conference com 36 clubes, 8 jogos por clube, top 8 direto às oitavas, 9º-24º playoff; Libertadores e Sul-Americana em grupos e mata-mata; Mundial 32 clubes, grupos e mata-mata. Criar montagem de participantes por classificação/campeões quando possível; deixar claro qualquer simplificação.
-4) Simulação de resultados: modo “Nota de elenco” e modo “Aleatório”. Nota 0-100, mandante +3, probabilidades suaves e não determinísticas, gols coerentes com força; modo aleatório ignora notas e sorteia resultados/gols. Mostrar modo usado.
-5) Simular rodada, turno e temporada completa; botão avançar temporada com promoção/rebaixamento automáticos e histórico de divisão por clube. Simulação de temporada deve ser rápida, sem animação bloqueante; resultados podem aparecer com animação leve.
-6) Tabela de classificação com pontos, jogos, vitórias, empates, derrotas, gols pró/contra/saldo, zonas coloridas e lista de rodadas/resultados. Ordenação correta por pontos, saldo e gols pró.
-7) Tela de clube: escudo/logo se houver ou iniciais, nota geral, resultados e elenco editável. Adicionar/editar/remover jogador, nome, posição e nota 0-100. Nota do clube é média das notas individuais e atualiza imediatamente.
-8) Persistência localStorage para clubes, elencos, notas, resultados, temporadas e configurações; recuperar estado ao reabrir. Botão de reset com confirmação.
-9) Dados/API: criar uma camada de serviço preparada para Football-Data.org ou API-Football, com estado de carregamento/progresso por liga, cache e botão “Atualizar dados”. Não exponha chaves secretas no frontend; se não houver credencial configurada, usar conjuntos iniciais locais claramente identificados como dados de demonstração, permitindo usar o simulador sem API. Não alegar que os dados são oficiais/verificados. Football-Data.org pode não fornecer elencos completos/notas EA FC; representar ausências honestamente e permitir edição manual. Preparar configuração segura para integração futura.
-10) Fornecer dados iniciais demonstrativos para que o app abra utilizável, priorizando clubes brasileiros e europeus conhecidos. Não afirmar que elencos são atuais ou oficiais sem fonte. Evitar copiar ratings protegidos do EA FC; usar notas sintéticas claramente rotuladas.
+O app começa **exatamente de onde a conversa parou**: pós Operação Mãos Limpas, caixa $13,3bi, bolso pessoal $37,395bi, Space Coin $55, Apple na geladeira, obras do Estates congeladas, INDEX indeciso, EWC nas quartas. Todas as 7 pendências abertas vivem na coluna esquerda e avançam de etapa quando você age sobre elas.
 
-IMPLEMENTAÇÃO: Comece com uma base completa funcional e bem organizada, componentes reutilizáveis, tipos TypeScript, lógica de calendário e classificação testável. Corrija erros de build. Se não for viável concluir todas as competições internacionais na primeira etapa, implemente a navegação e o modelo de dados, mas priorize funcionalmente Série A/B/C, editor de elenco, modos de simulação, tabela, persistência e avanço de temporada. Deixe explícito na interface o que está implementado e o que é simplificado. Não invente integração API ativa sem credenciais.
+## Arquitetura (motor híbrido)
+
+- **Engine determinística** (`src/rp/engine.ts`) — classifica a ação, lê o valor em texto ("gastar 500 milhões"), aplica o plano de efeitos da categoria, rola eventos ambientais com RNG semeado (mesmo turno + mesma ação = mesmo resultado), avança pendências por gatilho e emite as consequências numéricas. Os números **nunca** vêm da IA.
+- **IA narradora opcional** (`src/rp/narrador.ts`) — se você ligar em ⚙ Ajustes com uma chave de API compatível com OpenAI, a IA reescreve só o título e a cena no estilo do Axiom. Erro/chave ruim → engine local assume, o turno nunca trava.
+- **Memória oculta** (`src/rp/lore.ts`) — o `roleplat.txt` inteiro (27.728 linhas do RP original) vai embutido no bundle, nunca aparece na UI; a cada turno com IA ligada, busca lexical puxa os trechos relevantes como contexto.
+- **Persistência** — estado salvo no localStorage a cada turno, com export/import de save e reset nos ajustes.
+
+## Desenvolvimento
+
+```sh
+npm i
+npm run dev      # http://localhost:8080
+npm run build
+npx vitest run   # suíte da engine (10 testes)
+```
 
 This project was built with [Lovable](https://lovable.dev).
 

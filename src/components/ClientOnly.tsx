@@ -5,9 +5,7 @@ export function ClientOnly({ children }: { children: ReactNode }) {
   const [pronto, setPronto] = useState(false);
   useEffect(() => setPronto(true), []);
   if (!pronto) {
-    return (
-      <div className="py-20 text-center text-sm text-muted-foreground">Carregando…</div>
-    );
+    return <div className="py-20 text-center text-sm text-muted-foreground">Carregando…</div>;
   }
   return <>{children}</>;
 }
