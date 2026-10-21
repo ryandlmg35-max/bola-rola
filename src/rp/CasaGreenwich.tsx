@@ -203,6 +203,7 @@ export function CasaGreenwich({ aberto, onFechar, onVoltarBase }: Props) {
   const convidarSofiaCasa = useRP((s) => s.convidarSofiaCasa);
   const falarComSofia = useRP((s) => s.falarComSofia);
   const sofiaPensando = useRP((s) => s.sofiaPensando);
+  const iaErro = useRP((s) => s.iaErro);
   const decisao = estado.sofiaNaCasa;
 
   const [texto, setTexto] = useState("");
@@ -346,6 +347,11 @@ export function CasaGreenwich({ aberto, onFechar, onVoltarBase }: Props) {
               </div>
 
               {/* Chat integrado de Greenwich */}
+              {iaErro && (
+                <div className="mt-2 rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-[10px] leading-snug text-red-300">
+                  IA fora — respondendo no motor local. {iaErro.slice(0, 120)}
+                </div>
+              )}
               <div className="mt-2.5 flex max-h-48 min-h-36 flex-1 flex-col gap-1.5 overflow-y-auto rounded-lg border border-border/50 bg-background/50 p-2 text-[12px]">
                 {msgsRecentes.map((m) => {
                   const deRyan = m.de === "ryan";
@@ -358,6 +364,15 @@ export function CasaGreenwich({ aberto, onFechar, onVoltarBase }: Props) {
                             : "bg-card text-foreground/90 border border-border/40"
                         }`}
                       >
+                        {!deRyan && m.fonte && (
+                          <span
+                            className={`mb-0.5 block text-[9px] uppercase tracking-wider ${
+                              m.fonte === "ia" ? "text-ouro/80" : "text-muted-foreground/70"
+                            }`}
+                          >
+                            {m.fonte === "ia" ? "IA" : "motor local"}
+                          </span>
+                        )}
                         <p className="whitespace-pre-line">{m.texto}</p>
                       </div>
                     </div>

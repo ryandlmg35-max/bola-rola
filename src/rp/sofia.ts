@@ -13,6 +13,7 @@ function baseSofia(estado: EstadoRP, texto: string): string {
   const pendentes = estado.pendencias.filter((p) => p.ativa).length;
   const r = rng(estado.seed + estado.turno * 17 + texto.length * 31);
   const humor = humorSofia(estado.sofia);
+  const emCasa = estado.localizacao === "casa";
 
   const temValor = /\d/.test(t) || /(gast|compr|pag|invest|doa|liber|orçament|orcament)/.test(t);
 
@@ -73,7 +74,22 @@ function baseSofia(estado: EstadoRP, texto: string): string {
       ? "Boa noite"
       : /boa tarde/.test(t)
         ? "Boa tarde"
-        : "Bom dia";
+        : /bom dia/.test(t)
+          ? "Bom dia"
+          : "Oi";
+    if (emCasa) {
+      if (humor.tom === "limite" || humor.tom === "congelada") {
+        return sorteia(r, [
+          `${saudacao}. Tô cansada, mas tô aqui. Senta comigo um pouco.`,
+          `${saudacao}, Ryan. O dia foi longo — fica aqui comigo.`,
+        ]);
+      }
+      return sorteia(r, [
+        `${saudacao}, amor. Tô na varanda — o Noah dormiu e a casa tá quieta.`,
+        `${saudacao}. Demorou. Vem cá que eu tô com saudade.`,
+        `${saudacao}, meu amor. Larguei tudo pra te ver chegar.`,
+      ]);
+    }
     if (humor.tom === "derretendo" || humor.tom === "calorosa") {
       return sorteia(r, [
         `${saudacao}, você. Fica aqui mais cinco minutos antes de virar presidente de novo.`,
@@ -81,17 +97,20 @@ function baseSofia(estado: EstadoRP, texto: string): string {
       ]);
     }
     if (humor.tom === "limite" || humor.tom === "congelada") {
-      return `${saudacao}, Ryan. Tô no limite — mas você falou bom dia antes de pedir alguma coisa, então já melhora o dia.`;
+      return `${saudacao}, Ryan. Tô no limite — mas você falou comigo antes de pedir alguma coisa, então já melhora o dia.`;
     }
-    return sorteia(r, [
-      `${saudacao}, Ryan. ${pendentes} pendência(s) na minha mesa e o café já tá quente. O que vem hoje?`,
-      `${saudacao}. Tô com o balanço aberto e ${fmtUSD(estado.caixa)} na tela — bom dia de ver número subir.`,
-    ]);
+    return sorteia(r, [`${saudacao}, Ryan.`, `${saudacao}. O dia tá andando. E você?`]);
   }
 
   if (
     /(como você tá|como voce ta|como está|como voce esta|tudo certo por aí|beleza por aí)/.test(t)
   ) {
+    if (emCasa) {
+      return sorteia(r, [
+        "Tô bem. Melhor agora que você tá aqui.",
+        `Tô cansada, mas bem. Estresse em ${estado.sofia.estresse}/100 — e mesmo assim eu tô sorrindo.`,
+      ]);
+    }
     return sorteia(r, [
       `Tô bem. Estresse em ${estado.sofia.estresse}/100 — aguento você e o conselho hoje.`,
       "Cansada do conselho, mas bem. E você, além de bonito, veio fazer o quê no 130º?",
@@ -165,12 +184,117 @@ function baseSofia(estado: EstadoRP, texto: string): string {
   }
 
   // ── Default ────────────────────────────────────────────────────────────
+  if (emCasa) {
+    return sorteia(r, [
+      "Tô aqui. O Noah dormiu, a casa tá quieta — me conta como foi seu dia.",
+      "Senta comigo. O jantar tá quase pronto e eu quero ouvir você.",
+      "Nada de pauta hoje, Ryan. Só você, eu e essa varanda.",
+    ]);
+  }
   return sorteia(r, [
     `Estou no 130º, com ${pendentes} pendências abertas e a pauta da cláusula 14.8 na mão. Fala rápido, que o dia do império não audita sozinho.`,
     "Pode falar. Só saiba que tudo que você disser aqui eu leio de novo no fechamento do mês — com data, hora e nome.",
     `Moral do grupo em ${estado.moral}, povo em ${estado.aprovacao}, heat em ${estado.heat}. O mundo tá estável por enquanto. O que você quer estragar primeiro?`,
     "Reestruturação de Passivo é o meu vocabulário pra 'você gastou de novo'. Continua, eu aguento — só traz nota fiscal.",
   ]);
+}
+
+/**
+ * Camada social determinística: saudação, "te amo", "saudade", "tudo bem".
+ * Responde como gente, sem chamar IA e sem citar trabalho — o modelo local
+ * (8B) tende a puxar relatório em mensagem curta, e isso mata a cena.
+ * Devolve null quando a fala não é puramente social (aí sim vai pra IA).
+ */
+export function respostaSocialSofia(estado: EstadoRP, texto: string): string | null {
+  const t = texto.trim().toLowerCase();
+  if (!t || t.length > 70) return null;
+
+  const emCasa = estado.localizacao === "casa";
+  const tom = humorSofia(estado.sofia).tom;
+  const carinhosa = tom === "derretendo" || tom === "calorosa";
+  const exausta = tom === "limite" || tom === "congelada";
+  const r = rng(estado.seed + estado.turno * 13 + texto.length * 29);
+
+  const saudacao =
+    /^(oi+|oii+|olá|ola|opa|e a[íi]|bom dia|boa tarde|boa noite|tudo bem|tudo bom|beleza)(\s*[,!.?]?\s*(amor|meu amor|meu bem|bem|gata|linda|meu anjo|vida))?[!.?\s]*$/i;
+  if (saudacao.test(t)) {
+    const hora = /bom dia/.test(t)
+      ? "Bom dia"
+      : /boa tarde/.test(t)
+        ? "Boa tarde"
+        : /boa noite/.test(t)
+          ? "Boa noite"
+          : "Oi";
+    if (emCasa) {
+      if (exausta) {
+        return sorteia(r, [
+          `${hora}. Tô cansada, mas tô aqui. Senta comigo um pouco.`,
+          `${hora}, Ryan. O dia foi longo — fica aqui comigo.`,
+        ]);
+      }
+      if (carinhosa) {
+        return sorteia(r, [
+          `${hora}, amor. Tô na varanda — o Noah dormiu e a casa tá quieta.`,
+          `${hora}. Demorou. Vem cá que eu tô com saudade.`,
+          `${hora}, meu amor. Larguei tudo pra te ver chegar.`,
+        ]);
+      }
+      return sorteia(r, [
+        `${hora}, Ryan. Tô aqui em casa.`,
+        `${hora}. Senta comigo, o jantar tá quase pronto.`,
+      ]);
+    }
+    if (exausta) {
+      return `${hora}, Ryan. Tô no limite hoje, mas você falou comigo primeiro — já ajuda.`;
+    }
+    if (carinhosa) {
+      return sorteia(r, [
+        `${hora}, você. Vem aqui me dar um beijo antes de eu voltar pro mundo.`,
+        `${hora}. Tô te esperando desde cedo, sabia?`,
+      ]);
+    }
+    return sorteia(r, [`${hora}, Ryan.`, `${hora}. O dia tá andando. E você?`]);
+  }
+
+  const afeto =
+    /^(te amo|amo (você|voce|vc)|saudade|tô com saudade|to com saudade|sinto sua falta)(\s+(muito|demais|também|tambem|de você|de voce))*[!.?\s]*$/i;
+  if (afeto.test(t)) {
+    if (emCasa && carinhosa) {
+      return sorteia(r, [
+        "Eu também te amo. Vem cá, não fica longe de mim hoje.",
+        "Saudade de você mesmo quando você tá do meu lado. É bobagem, mas é verdade.",
+        "Eu te amo. Agora me beija e para de falar.",
+      ]);
+    }
+    if (exausta) {
+      return sorteia(r, [
+        "Eu também te amo. Só me dá um minuto pra respirar, tá?",
+        "Amo você. Hoje eu só preciso de silêncio e do seu colo.",
+      ]);
+    }
+    return sorteia(r, ["Eu também te amo, Ryan.", "Amo você. Sempre."]);
+  }
+
+  if (
+    /^(como (você|voce|vc) (tá|ta|está|esta)|como vai|tudo certo)(\s*[,!.?]?\s*(amor|meu amor|meu bem|bem|gata|linda|vida))?[!.?]*$/i.test(
+      t,
+    )
+  ) {
+    if (emCasa) {
+      return sorteia(r, [
+        "Tô bem. Melhor agora que você tá aqui.",
+        "Tô cansada, mas bem. E você, como tá de verdade?",
+      ]);
+    }
+    return sorteia(r, [
+      "Tô bem. Segurando o dia. E você?",
+      "Bem. O dia tá cheio, mas eu tô inteira.",
+    ]);
+  }
+
+  if (/^(obrigad[oa]|valeu|brigad[oa])\b/.test(t)) return "Sempre, Ryan.";
+  if (/^(desculpa|foi mal|me desculpa)\b/.test(t)) return "Tá perdoado. Mas me deve um jantar.";
+  return null;
 }
 
 export interface DeltaFala {
@@ -260,5 +384,8 @@ function tomSofia(s: SofiaStatus, r: () => number): string {
 /** Resposta completa: conteúdo do assunto + assinatura do humor atual. */
 export function respostaLocalSofia(estado: EstadoRP, texto: string): string {
   const r = rng(estado.seed + estado.turno * 23 + texto.length * 7);
-  return baseSofia(estado, texto) + tomSofia(estado.sofia, r);
+  // Em casa a assinatura de humor sai de cena: ela fala de extrato e planilha,
+  // e isso quebra a intimidade da varanda.
+  const assinatura = estado.localizacao === "casa" ? "" : tomSofia(estado.sofia, r);
+  return baseSofia(estado, texto) + assinatura;
 }

@@ -246,14 +246,18 @@ export async function chamarIA(
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), opcoes.timeoutMs ?? 45_000);
+  const base = config.baseUrl.replace(/\/$/, "");
+  // Modelo local pequeno esquenta rápido: 0.95 vira monólogo. Teto de 0.75
+  // em localhost mantém a fala curta e no personagem.
+  const local = /localhost|127\.0\.0\.1/.test(base);
+  const temperatura = opcoes.temperature ?? 0.85;
   const payload = {
     model: modelo,
     messages: mensagens,
-    temperature: opcoes.temperature ?? 0.85,
+    temperature: local ? Math.min(temperatura, 0.75) : temperatura,
     max_tokens: opcoes.maxTokens ?? 700,
     stream: false,
   };
-  const base = config.baseUrl.replace(/\/$/, "");
   // Toda falha vira registro público: a UI precisa mostrar quando o motor
   // local assumiu no lugar da IA — fingir que é IA é pior que falhar.
   const falha = (erro: string, status: number | null, latenciaMs: number): ResultadoIA => {

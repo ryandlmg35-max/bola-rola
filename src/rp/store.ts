@@ -21,7 +21,7 @@ import {
   responderGeralIA,
   responderSofiaIA,
 } from "./narrador";
-import { deltaSofia, respostaLocalSofia } from "./sofia";
+import { deltaSofia, respostaLocalSofia, respostaSocialSofia } from "./sofia";
 import { respostaLocalAxiom } from "./axiom";
 import { ultimaFalhaIA } from "./ia";
 import { aplicarImpacto, impactoConversa, repercussaoChat, respostaLocalGeral } from "./canal";
@@ -801,11 +801,13 @@ export const useRP = create<LojaRP>((set, get) => ({
     };
     const baseComHumor: EstadoRP = { ...base, sofia: sofiaNovo, chatSofia: comRyan };
 
-    let resposta: string | null = null;
+    let resposta: string | null = respostaSocialSofia(baseComHumor, t);
     let pensamento: string | undefined;
     let pensouMs: number | undefined;
     let fonte: "ia" | "local" = "local";
-    if (base.config.habilitada) {
+    // Saudação/afeto é conversa de gente: resposta determinística, sem IA.
+    // O modelo local errava feio aqui e puxava relatório no "oi, amor".
+    if (!resposta && base.config.habilitada) {
       const daIA = await responderSofiaIA(base.config, baseComHumor, comRyan, t);
       if (daIA) {
         resposta = daIA.texto;
