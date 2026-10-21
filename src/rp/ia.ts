@@ -1,0 +1,280 @@
+import type { ConfigIA, ModelosIA, ProvedorIA } from "./types";
+
+/** NVIDIA NIM — OpenAI-compatible, catálogo gratuito (rate-limited). */
+export const BASE_NVIDIA = "https://integrate.api.nvidia.com/v1";
+
+export interface ModeloCatalogo {
+  id: string;
+  nome: string;
+  nota: string;
+}
+
+export const MODELOS_NVIDIA: ModeloCatalogo[] = [
+  {
+    id: "deepseek-ai/deepseek-v4.1-flash",
+    nome: "DeepSeek V4.1 Flash",
+    nota: "conversa longa e rápida, mais permissiva pra roleplay — Axiom e Sofia",
+  },
+  {
+    id: "nvidia/nemotron-3-super-120b-a12b",
+    nome: "Nemotron 3 Super 120B",
+    nota: "instrução forte e JSON confiável — motor do mundo",
+  },
+  {
+    id: "nvidia/nemotron-3.5-lightning-30b-a3b",
+    nome: "Nemotron 3.5 Lightning 30B",
+    nota: "rápido, mas o reasoning pode consumir o limite — exige maxTokens alto",
+  },
+  {
+    id: "nvidia/nemotron-3-ultra-550b-a55b",
+    nome: "Nemotron 3 Ultra 550B",
+    nota: "pesado — reunião de fechamento",
+  },
+  {
+    id: "nvidia/nemotron-nano-3-30b-a3b",
+    nome: "Nemotron Nano 3 30B",
+    nota: "leve — fallback econômico",
+  },
+  {
+    id: "nvidia/nemotron-4-340b-instruct",
+    nome: "Nemotron 4 340B (legado)",
+    nota: "modelo antigo, ainda listado",
+  },
+  {
+    id: "openai/gpt-oss-20b",
+    nome: "GPT-OSS 20B",
+    nota: "instrução forte e JSON consistente — narrador, mundo e conselho",
+  },
+];
+
+export const NOMES_MODELOS: Record<keyof ModelosIA, string> = {
+  narrador: "Narrador do turno",
+  mundo: "Motor do mundo (eventos)",
+  sofia: "Sofia (CFO)",
+  axiom: "Axiom (chief of staff)",
+  conselho: "Conselho de fechamento",
+};
+
+export function modelosPadrao(provedor: ProvedorIA): ModelosIA {
+  if (provedor === "nvidia") {
+    // GPT-OSS 20B: raciocínio rápido pra narrativa, mundo e conselho.
+    // DeepSeek V4.1 Flash: conversa longa e mais permissiva pro roleplay
+    // ficcional de Sofia e Axiom (mesma escolha da migração v3 do store).
+    return {
+      narrador: "openai/gpt-oss-20b",
+      mundo: "openai/gpt-oss-20b",
+      sofia: "deepseek-ai/deepseek-v4.1-flash",
+      axiom: "deepseek-ai/deepseek-v4.1-flash",
+      conselho: "openai/gpt-oss-20b",
+    };
+  }
+  return {
+    narrador: "gpt-4o-mini",
+    mundo: "gpt-4o-mini",
+    sofia: "gpt-4o-mini",
+    axiom: "gpt-4o-mini",
+    conselho: "gpt-4o-mini",
+  };
+}
+
+export function configInicial(): ConfigIA {
+  return {
+    // A IA liga por padrão. Sem chave no cliente, o proxy usa NVIDIA_API_KEY
+    // do servidor; sem nenhuma das duas, cada chamada falha e o turno cai no
+    // motor local — sem travar.
+    habilitada: true,
+    provedor: "nvidia",
+    baseUrl: BASE_NVIDIA,
+    apiKey: "",
+    modelos: modelosPadrao("nvidia"),
+    versaoConfig: 2,
+  };
+}
+
+export function aplicarPreset(provedor: ProvedorIA): Partial<ConfigIA> {
+  return {
+    provedor,
+    baseUrl: provedor === "nvidia" ? BASE_NVIDIA : "https://api.openai.com/v1",
+    modelos: modelosPadrao(provedor),
+  };
+}
+
+export interface MensagemIA {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+export interface OpcoesIA {
+  maxTokens?: number;
+  temperature?: number;
+  timeoutMs?: number;
+}
+
+export interface ResultadoIA {
+  texto: string | null;
+  erro: string | null;
+  status: number | null;
+  latenciaMs: number;
+}
+
+/**
+ * Chamada única, sem retry: o motor do RP precisa de previsibilidade.
+ * Qualquer falha (401, 429, timeout, CORS) devolve erro e o chamador
+ * cai na versão local — nunca trava o turno.
+ */
+export async function chamarIA(
+  config: ConfigIA,
+  modelo: string,
+  mensagens: MensagemIA[],
+  opcoes: OpcoesIA = {},
+): Promise<ResultadoIA> {
+  const inicio = performance.now();
+  if (!modelo.trim()) {
+    return { texto: null, erro: "modelo vazio", status: null, latenciaMs: 0 };
+  }
+  const chaveCliente = config.apiKey.trim();
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), opcoes.timeoutMs ?? 45_000);
+  const payload = {
+    model: modelo,
+    messages: mensagens,
+    temperature: opcoes.temperature ?? 0.85,
+    max_tokens: opcoes.maxTokens ?? 700,
+    stream: false,
+  };
+  const base = config.baseUrl.replace(/\/$/, "");
+  try {
+    // 1º caminho: proxy same-origin do app (NVIDIA não manda CORS pro browser).
+    // 2º: chamada direta, pra preview estático/endpoint que aceite CORS.
+    let resp: Response | null = null;
+    try {
+      resp = await fetch("/api/ia", {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          baseUrl: config.baseUrl,
+          apiKey: chaveCliente,
+          body: payload,
+        }),
+      });
+      if (resp.status === 404 || resp.status === 405) resp = null;
+    } catch {
+      resp = null;
+    }
+    if (!resp) {
+      if (!chaveCliente) {
+        return {
+          texto: null,
+          erro: "proxy indisponível e sem chave local",
+          status: null,
+          latenciaMs: Math.round(performance.now() - inicio),
+        };
+      }
+      resp = await fetch(`${base}/chat/completions`, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${chaveCliente}`,
+        },
+        body: JSON.stringify(payload),
+      });
+    }
+
+    const latenciaMs = Math.round(performance.now() - inicio);
+    if (!resp.ok) {
+      const corpo = await resp.text().catch(() => "");
+      const detalhe = corpo.replace(/\s+/g, " ").slice(0, 220);
+      return {
+        texto: null,
+        erro: `HTTP ${resp.status}${detalhe ? ` — ${detalhe}` : ""}`,
+        status: resp.status,
+        latenciaMs,
+      };
+    }
+    const contentType = resp.headers.get("content-type") ?? "";
+    if (!contentType.includes("json")) {
+      return {
+        texto: null,
+        erro: `resposta não-JSON (${contentType || "sem content-type"})`,
+        status: resp.status,
+        latenciaMs,
+      };
+    }
+    const data = (await resp.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const texto = (data.choices?.[0]?.message?.content ?? "").trim();
+    if (!texto) {
+      return { texto: null, erro: "resposta vazia", status: resp.status, latenciaMs };
+    }
+    return { texto, erro: null, status: resp.status, latenciaMs };
+  } catch (e) {
+    const latenciaMs = Math.round(performance.now() - inicio);
+    const erro = e instanceof DOMException && e.name === "AbortError" ? "timeout" : String(e);
+    return { texto: null, erro: erro.slice(0, 220), status: null, latenciaMs };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Extrai o primeiro objeto JSON válido do texto (modelos às vezes enchem de prosa). */
+export function extrairJSON<T>(bruto: string): T | null {
+  const ini = bruto.indexOf("{");
+  if (ini < 0) return null;
+  let profundidade = 0;
+  let emString = false;
+  let escape = false;
+  for (let i = ini; i < bruto.length; i++) {
+    const c = bruto[i];
+    if (emString) {
+      if (escape) escape = false;
+      else if (c === "\\") escape = true;
+      else if (c === '"') emString = false;
+      continue;
+    }
+    if (c === '"') emString = true;
+    else if (c === "{") profundidade++;
+    else if (c === "}") {
+      profundidade--;
+      if (profundidade === 0) {
+        try {
+          return JSON.parse(bruto.slice(ini, i + 1)) as T;
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+export async function testarIA(
+  config: ConfigIA,
+): Promise<{ ok: boolean; detalhe: string; modelo: string }> {
+  const modelo = config.modelos.axiom;
+  const r = await chamarIA(
+    config,
+    modelo,
+    [
+      { role: "system", content: "Responda só: ok" },
+      { role: "user", content: "ping" },
+    ],
+    { maxTokens: 256, temperature: 0, timeoutMs: 60_000 },
+  );
+  if (r.texto) {
+    return {
+      ok: true,
+      detalhe: `respondeu em ${r.latenciaMs}ms com ${modelo}`,
+      modelo,
+    };
+  }
+  return { ok: false, detalhe: r.erro ?? "falhou sem detalhe", modelo };
+}
+
+/** Clamp de números vindos de IA — o caixa nunca depende da imaginação do modelo. */
+export function limitar(v: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, v));
+}

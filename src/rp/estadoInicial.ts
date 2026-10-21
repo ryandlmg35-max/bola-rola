@@ -1,14 +1,18 @@
 import type { EstadoRP, EntradaFeed, MsgChat } from "./types";
+import { formatarCalendario } from "./calendario";
+import { configInicial } from "./ia";
 
 /**
  * Estado inicial — transcrição exata de onde a conversa parou
  * (roleplat.txt, linhas 24.700–27.728). Nenhum número inventado aqui:
  * holding $3,8tri, caixa $13,3bi, pessoal $37,395bi, Space Coin $55.
+ * O calendário começa em janeiro de 2027: primeiro mês do império autônomo.
  */
 export function estadoInicial(): EstadoRP {
   return {
     turno: 0,
-    data: "2026 — pós Operação Mãos Limpas",
+    data: formatarCalendario({ ano: 2027, mes: 1, semana: 1 }),
+    calendario: { ano: 2027, mes: 1, semana: 1 },
     seed: 6767,
 
     caixa: 13.3, // holding, pós Space Estates ($3,95bi) e contratações ($2,5bi)
@@ -402,12 +406,50 @@ export function estadoInicial(): EstadoRP {
       },
     ],
     sofia: { estresse: 40, energia: 55 },
-    config: {
-      habilitada: false,
-      baseUrl: "https://api.openai.com/v1",
-      apiKey: "",
-      modelo: "gpt-4o-mini",
+    chatAxiom: [
+      {
+        id: "axiom-abertura",
+        de: "axiom",
+        turno: 0,
+        texto:
+          "Boss man. O império tá de pé: $3,8tri de valor, $13,3bi de caixa e sete pendências na tua mesa. O calendário virou — janeiro de 2027, semana 1 de 4. Eu já avisei os CEOs que quando o mês fechar eles sobem pro 130º. Até lá o mundo anda sozinho, e eu ando na frente dele.",
+      },
+    ],
+    mundo: {
+      tensao: 38,
+      conflitos: [
+        {
+          id: "c-0-conteudo",
+          entre: "Daniel Cross",
+          sobre: "orçamento de conteúdo 2027",
+          nivel: 22,
+          desde: 0,
+        },
+        {
+          id: "c-0-valuation",
+          entre: "Helena Voss",
+          sobre: "valuation da Space AI",
+          nivel: 14,
+          desde: 0,
+        },
+      ],
+      clima: "semana controlada",
+      ultimaSemana: ["Fechamento do RP original", "Calendário virou: janeiro de 2027"],
     },
+    plano: {
+      diretriz: "Sem diretriz — primeiro fechamento",
+      receitaMult: 1,
+      lucroMult: 1,
+      mesRef: "2027-01",
+    },
+    ultimoRelatorio: null,
+    naoLidas: { sofia: 0, axiom: 0 },
+    config: configInicial(),
+    localizacao: "tower",
+    convite: null,
+    reuniaoAtual: null,
+    sofiaNaCasa: null,
+    chatsCEOs: {},
   };
 }
 

@@ -77,18 +77,96 @@ export interface Divisao {
   nota: string;
 }
 
+export type ProvedorIA = "nvidia" | "custom";
+
+/** Um modelo por função: o mundo não usa o mesmo cérebro do conselho. */
+export interface ModelosIA {
+  /** Reescrita da cena do turno (rápido). */
+  narrador: string;
+  /** Eventos autônomos da semana — o motor do mundo. */
+  mundo: string;
+  /** Chat da Sofia (CFO). */
+  sofia: string;
+  /** Chat do Axiom (chief of staff). */
+  axiom: string;
+  /** Reunião de fechamento de mês. */
+  conselho: string;
+}
+
 export interface ConfigIA {
   habilitada: boolean;
+  provedor: ProvedorIA;
   baseUrl: string;
   apiKey: string;
-  modelo: string;
+  modelos: ModelosIA;
+  /** Versão do schema de configuração; saves antigos migram modelos/chave. */
+  versaoConfig?: number;
 }
 
 export interface MsgChat {
   id: string;
-  de: "ryan" | "sofia";
+  de: "ryan" | "sofia" | "axiom";
   texto: string;
   turno: number;
+  /** Mensagem que chegou sozinha (o mundo andou sem o Ryan). */
+  auto?: boolean;
+}
+
+/** Reunião detectada no chat ou na ordem livre. */
+export interface ConviteReuniao {
+  id: string;
+  titulo: string;
+  /** id da sede, "tower" (base) ou "casa". */
+  localId: string;
+  origemId: string;
+  participantes: string[];
+  quando: string;
+  criadoTurno: number;
+  fonte: "local" | "ia";
+}
+
+/** Calendário do RP: 4 semanas por mês, 1 turno = 1 semana. */
+export interface Calendario {
+  ano: number;
+  mes: number;
+  semana: number;
+}
+
+export interface Conflito {
+  id: string;
+  entre: string;
+  sobre: string;
+  /** 0..100 — quanto maior, mais perto de rachar o conselho. */
+  nivel: number;
+  desde: number;
+}
+
+export interface Mundo {
+  /** 0..100 — tensão do conselho/executivos. Alimenta conflitos e custos. */
+  tensao: number;
+  conflitos: Conflito[];
+  /** Última leitura de clima feita pelo motor ("calmo", "convulsão"...). */
+  clima: string;
+  /** Manchetes internas da última semana (contexto pra IA e pros chats). */
+  ultimaSemana: string[];
+}
+
+export interface PlanoMes {
+  diretriz: string;
+  receitaMult: number;
+  lucroMult: number;
+  mesRef: string;
+}
+
+export interface RelatorioMes {
+  ano: number;
+  mes: number;
+  receita: number;
+  lucro: number;
+  caixaAntes: number;
+  caixaDepois: number;
+  dividendos: number;
+  diretriz: string;
 }
 
 export interface SofiaStatus {
@@ -98,9 +176,17 @@ export interface SofiaStatus {
   energia: number;
 }
 
+export interface MsgCEO {
+  id: string;
+  de: "ryan" | string; // "ryan" ou nome do CEO
+  texto: string;
+  turno: number;
+}
+
 export interface EstadoRP {
   turno: number;
   data: string;
+  calendario: Calendario;
   seed: number;
   caixa: number;
   pessoal: number;
@@ -116,6 +202,21 @@ export interface EstadoRP {
   pendencias: Pendencia[];
   feed: EntradaFeed[];
   chatSofia: MsgChat[];
+  chatAxiom: MsgChat[];
   sofia: SofiaStatus;
+  mundo: Mundo;
+  plano: PlanoMes;
+  ultimoRelatorio: RelatorioMes | null;
+  naoLidas: { sofia: number; axiom: number };
   config: ConfigIA;
+  /** Onde o Ryan está agora: "tower", "casa" ou id de uma sede. */
+  localizacao: string;
+  /** Reunião detectada, aguardando o Ryan decidir ir. */
+  convite: ConviteReuniao | null;
+  /** Reunião em andamento na sede de destino. */
+  reuniaoAtual: ConviteReuniao | null;
+  /** null = ainda não chamou; true/false = resposta da Sofia nesta visita. */
+  sofiaNaCasa: boolean | null;
+  /** Chats com os CEOs das divisões — keyed por divisao.id. */
+  chatsCEOs: Record<string, MsgCEO[]>;
 }

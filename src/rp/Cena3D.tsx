@@ -1,5 +1,5 @@
-import { useMemo, useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
 /**
@@ -8,9 +8,50 @@ import * as THREE from "three";
  * Ambient: só roda no ClientOnly do index.tsx — SSR nunca monta o Canvas.
  */
 
+/**
+ * O Canvas roda em `frameloop="demand"`: sem esse ticker, nada anima.
+ * 30 fps é suficiente para um globo decorativo e corta o custo pela metade.
+ */
+function Ticker({ fps = 30 }: { fps?: number }) {
+  const invalidate = useThree((state) => state.invalidate);
+
+  useEffect(() => {
+    let timer = 0;
+    let ligado = true;
+
+    const passo = () => {
+      if (!ligado) return;
+      invalidate();
+      timer = window.setTimeout(passo, 1000 / fps);
+    };
+
+    const aoTrocarVisibilidade = () => {
+      if (document.hidden) {
+        ligado = false;
+        window.clearTimeout(timer);
+        return;
+      }
+      if (!ligado) {
+        ligado = true;
+        passo();
+      }
+    };
+
+    passo();
+    document.addEventListener("visibilitychange", aoTrocarVisibilidade);
+    return () => {
+      ligado = false;
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", aoTrocarVisibilidade);
+    };
+  }, [invalidate, fps]);
+
+  return null;
+}
+
 function Estrelas() {
   const geo = useMemo(() => {
-    const N = 350;
+    const N = 240;
     const pos = new Float32Array(N * 3);
     for (let i = 0; i < N; i++) {
       // casca esférica distante, distribuição uniforme por inversa de seno
@@ -49,7 +90,7 @@ function Globo() {
   });
   return (
     <mesh ref={ref} position={[1.6, 0, 0]}>
-      <sphereGeometry args={[1.9, 36, 24]} />
+      <sphereGeometry args={[1.9, 28, 18]} />
       <meshBasicMaterial color="#3b82f6" wireframe transparent opacity={0.28} />
       {/* núcleo brilhante */}
       <mesh>
@@ -58,7 +99,7 @@ function Globo() {
       </mesh>
       {/* anel de órbita */}
       <mesh rotation={[Math.PI / 2.4, 0, 0.4]}>
-        <torusGeometry args={[2.55, 0.012, 8, 90]} />
+        <torusGeometry args={[2.55, 0.012, 6, 64]} />
         <meshBasicMaterial color="#93c5fd" transparent opacity={0.5} />
       </mesh>
       {/* satélite em órbita */}
@@ -122,13 +163,30 @@ function Torre() {
 }
 
 export function Cena3D() {
+  const wrap = useRef<HTMLDivElement>(null);
+  const [naTela, setNaTela] = useState(true);
+
+  // Fora da viewport o Canvas não invalida nenhum frame. Sem isso, o globo
+  // continua rasterizando com a página rolada até o painel de dados.
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const obs = new IntersectionObserver(([entrada]) => setNaTela(entrada.isIntersecting), {
+      threshold: 0.01,
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
   return (
-    <div className="pointer-events-none absolute inset-0">
+    <div ref={wrap} className="pointer-events-none absolute inset-0">
       <Canvas
         camera={{ position: [0, 0.4, 8.5], fov: 50 }}
-        dpr={[1, 2]}
-        gl={{ antialias: true, alpha: true }}
+        frameloop="demand"
+        dpr={1}
+        gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}
       >
+        {naTela && <Ticker />}
         <Estrelas />
         <Globo />
         <Torre />

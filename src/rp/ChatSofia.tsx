@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRP } from "./store";
 import { humorSofia, type TomSofia } from "./sofia";
+import { ConviteReuniaoCard } from "./ConviteReuniaoCard";
 
 const HUMOR_CLS: Record<TomSofia, string> = {
   limite: "border-destructive/50 bg-destructive/15 text-destructive",
@@ -43,10 +44,11 @@ function Medidor({ label, valor, cor }: { label: string; valor: number; cor: str
 interface Props {
   aberto: boolean;
   onFechar: () => void;
+  onIrParaReuniao: () => void;
 }
 
-export function ChatSofia({ aberto, onFechar }: Props) {
-  const { estado, sofiaPensando, falarComSofia } = useRP();
+export function ChatSofia({ aberto, onFechar, onIrParaReuniao }: Props) {
+  const { estado, sofiaPensando, falarComSofia, marcarLidas, dispensarConvite } = useRP();
   const [texto, setTexto] = useState("");
   const listaRef = useRef<HTMLDivElement>(null);
   const humor = humorSofia(estado.sofia);
@@ -62,6 +64,10 @@ export function ChatSofia({ aberto, onFechar }: Props) {
       : estado.sofia.energia >= 25
         ? "bg-primary"
         : "bg-slate-400";
+
+  useEffect(() => {
+    if (aberto) marcarLidas("sofia");
+  }, [aberto, marcarLidas]);
 
   useEffect(() => {
     const el = listaRef.current;
@@ -88,9 +94,9 @@ export function ChatSofia({ aberto, onFechar }: Props) {
             </span>
           </DialogTitle>
           <DialogDescription className="text-xs">
-            {estado.config.habilitada && estado.config.apiKey
-              ? "Respondendo por IA, com o estado real do império."
-              : "Sofia local — números reais do caixa, sem chave de API."}
+            {estado.config.habilitada
+              ? `Respondendo por IA · ${estado.config.modelos.sofia.split("/").pop()}`
+              : "Sofia local — números reais do caixa, motor determinístico."}
           </DialogDescription>
           <div className="mt-2 flex items-center gap-3">
             <Medidor label="Estresse" valor={estado.sofia.estresse} cor={corEstresse} />
@@ -113,8 +119,13 @@ export function ChatSofia({ aberto, onFechar }: Props) {
                     : "rounded-bl-sm border border-ouro/30 bg-muted/40 text-foreground"
                 }`}
               >
-                <div className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+                <div className="mb-0.5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
                   {m.de === "ryan" ? "Ryan" : "Sofia"}
+                  {m.auto && (
+                    <span className="rounded-full bg-ouro/20 px-1.5 py-px text-[8px] text-ouro">
+                      sozinha
+                    </span>
+                  )}
                 </div>
                 {m.texto}
               </div>
@@ -128,6 +139,21 @@ export function ChatSofia({ aberto, onFechar }: Props) {
             </div>
           )}
         </div>
+
+        {estado.convite && (
+          <div className="shrink-0 border-t border-border/60 bg-card px-3 py-2">
+            <ConviteReuniaoCard
+              compact
+              convite={estado.convite}
+              noLocal={estado.convite.localId === estado.localizacao}
+              onIr={() => {
+                onFechar();
+                onIrParaReuniao();
+              }}
+              onDispensar={dispensarConvite}
+            />
+          </div>
+        )}
 
         <div className="shrink-0 border-t border-border/60 bg-card px-5 py-3">
           <div className="flex gap-2">
