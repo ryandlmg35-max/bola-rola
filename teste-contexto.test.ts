@@ -143,4 +143,13 @@ describe("presets de provedor", () => {
     expect(patch.apiKey).toBeUndefined();
     expect(patch.modelos?.sofia).toBe("openai/gpt-oss-120b");
   });
+
+  it("preset local aponta pro Dolphin 3 e desliga o planejador", () => {
+    const ollama = PRESETS_PROVEDOR.find((p) => p.id === "ollama");
+    expect(ollama).toBeTruthy();
+    const patch = aplicarPresetProvedor(ollama!);
+    expect(patch.baseUrl).toBe("http://localhost:11434/v1");
+    expect(patch.modelos?.sofia).toBe("dolphin3:8b");
+    expect(patch.raciocinio).toBe(false);
+  });
 });

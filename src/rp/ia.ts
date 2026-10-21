@@ -117,6 +117,8 @@ export interface PresetProvedor {
   selo: "grátis" | "local";
   nota: string;
   modelos: ModelosIA;
+  /** Local pequeno: uma chamada só por padrão (o planejador dobraria a espera). */
+  raciocinio?: boolean;
 }
 
 export const PRESETS_PROVEDOR: PresetProvedor[] = [
@@ -174,14 +176,15 @@ export const PRESETS_PROVEDOR: PresetProvedor[] = [
     baseUrl: "http://localhost:11434/v1",
     chaveUrl: null,
     selo: "local",
-    nota: "Sem chave e sem internet. Rode `ollama pull llama3.1` antes.",
+    nota: "Dolphin 3 8B já baixado (4,9 GB), sem censura e 100% GPU. Sem chave.",
+    raciocinio: false,
     modelos: {
-      narrador: "llama3.1",
-      mundo: "llama3.1",
-      sofia: "llama3.1",
-      axiom: "llama3.1",
-      geral: "llama3.1",
-      conselho: "llama3.1",
+      narrador: "dolphin3:8b",
+      mundo: "dolphin3:8b",
+      sofia: "dolphin3:8b",
+      axiom: "dolphin3:8b",
+      geral: "dolphin3:8b",
+      conselho: "dolphin3:8b",
     },
   },
 ];
@@ -191,6 +194,7 @@ export function aplicarPresetProvedor(preset: PresetProvedor): Partial<ConfigIA>
     provedor: "custom",
     baseUrl: preset.baseUrl,
     modelos: { ...preset.modelos },
+    ...(preset.raciocinio === undefined ? {} : { raciocinio: preset.raciocinio }),
   };
 }
 
