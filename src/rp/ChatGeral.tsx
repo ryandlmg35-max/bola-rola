@@ -44,7 +44,7 @@ function rotulo(de: string): string {
  * Os chips sob a fala do Ryan mostram o que a conversa moveu no império.
  */
 export function ChatGeral({ aberto, onFechar, onIrParaReuniao }: Props) {
-  const { estado, geralPensando, falarNoGeral, dispensarConvite } = useRP();
+  const { estado, geralPensando, falarNoGeral, dispensarConvite, iaErro } = useRP();
   const [texto, setTexto] = useState("");
   const listaRef = useRef<HTMLDivElement>(null);
 
@@ -73,6 +73,19 @@ export function ChatGeral({ aberto, onFechar, onIrParaReuniao }: Props) {
         <div className={`max-w-[78%] ${meu ? "text-right" : "text-left"}`}>
           <div className="mb-0.5 flex items-baseline gap-1.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
             <span>{rotulo(m.de)}</span>
+            {m.fonte === "local" && (
+              <span
+                className="rounded-full border border-amber-400/40 bg-amber-500/10 px-1.5 py-px text-[8px] text-amber-300"
+                title="A IA não respondeu — o motor local determinístico assumiu"
+              >
+                motor local
+              </span>
+            )}
+            {m.fonte === "ia" && (
+              <span className="rounded-full border border-primary/40 bg-primary/10 px-1.5 py-px text-[8px] text-primary">
+                IA
+              </span>
+            )}
             {eco && (
               <span className="rounded-full border border-ouro/40 bg-ouro/10 px-1.5 py-px text-[8px] text-ouro">
                 reagiu ao canal
@@ -125,6 +138,18 @@ export function ChatGeral({ aberto, onFechar, onIrParaReuniao }: Props) {
               ? `IA ligada · ${estado.config.modelos.axiom.split("/").pop()} · o que você fala aqui vira repercussão no império`
               : "Modo local determinístico — fala com o Axiom, o império escuta e reage."}
           </DialogDescription>
+          {iaErro && (
+            <div className="mt-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-[11px] leading-snug text-destructive">
+              <strong className="font-bold">IA caiu — motor local assumiu.</strong>{" "}
+              <span className="opacity-80">{iaErro}</span>
+              {iaErro.includes("403") && (
+                <span className="mt-1 block opacity-80">
+                  A chave NVIDIA tá valendo pra listar modelo, mas sem permissão de inferência
+                  (conta sem crédito). Gera chave nova em build.nvidia.com ou cola outra em Ajustes.
+                </span>
+              )}
+            </div>
+          )}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px]">
             <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 font-semibold text-primary">
               Heat {estado.heat}/100

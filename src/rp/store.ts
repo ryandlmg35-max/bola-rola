@@ -22,6 +22,7 @@ import {
 } from "./narrador";
 import { deltaSofia, respostaLocalSofia } from "./sofia";
 import { respostaLocalAxiom } from "./axiom";
+import { ultimaFalhaIA } from "./ia";
 import { aplicarImpacto, impactoConversa, repercussaoChat, respostaLocalGeral } from "./canal";
 import { avancarSemanaComEventos, eventosLocais, fecharMesLocal, recadoLocal } from "./mundo";
 import { formatarCalendario, mesFechado, proximaSemana } from "./calendario";
@@ -38,6 +39,8 @@ interface LojaRP {
   sofiaPensando: boolean;
   axiomPensando: boolean;
   geralPensando: boolean;
+  /** Última falha de IA da sessão — a UI mostra quando o motor local assumiu. */
+  iaErro: string | null;
   enviar: (acao: string) => Promise<void>;
   /** Conversa pública: Axiom responde no feed principal, impacta o RP. */
   conversar: (texto: string) => void;
@@ -340,6 +343,7 @@ export const useRP = create<LojaRP>((set, get) => ({
   sofiaPensando: false,
   axiomPensando: false,
   geralPensando: false,
+  iaErro: null,
 
   hidratar: () => {
     const salvo = carregar();
@@ -546,16 +550,27 @@ export const useRP = create<LojaRP>((set, get) => ({
     const imp = impactoConversa(base, t);
 
     let resposta: string | null = null;
+    let fonte: "ia" | "local" = "local";
     if (base.config.habilitada) {
       resposta = await responderGeralIA(base.config, inicial, comRyan, t);
+      if (resposta) fonte = "ia";
     }
-    if (!resposta) resposta = respostaLocalGeral(inicial, t);
+    if (!resposta) {
+      resposta = respostaLocalGeral(inicial, t);
+      // A falha precisa aparecer — o chat nunca pode fingir que é IA.
+      // O `falha.erro` já vem com o prefixo "HTTP nnn —", não duplica.
+      const falha = ultimaFalhaIA();
+      set({ iaErro: falha ? falha.erro : null });
+    } else {
+      set({ iaErro: null });
+    }
 
     const msgAxiom: MsgGeral = {
       id: `g-a-${Date.now()}`,
       de: "axiom",
       texto: resposta,
       turno: base.turno,
+      fonte,
     };
 
     // Repercussão: o que foi dito ecoa nos chats privados de quem ouviu.

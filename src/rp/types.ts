@@ -122,6 +122,8 @@ export interface MsgGeral {
   auto?: boolean;
   /** Chips de impacto exibidos sob a fala do Ryan ("aprovação +2"). */
   chips?: string[];
+  /** Quem escreveu de verdade: IA ou motor local. Nunca esconder isso. */
+  fonte?: "ia" | "local";
 }
 
 /** Reunião detectada no chat ou na ordem livre. */

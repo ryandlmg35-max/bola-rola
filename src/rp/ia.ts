@@ -117,6 +117,17 @@ export interface ResultadoIA {
   latenciaMs: number;
 }
 
+/** Última falha de IA da sessão — a UI mostra quando o motor local assumiu. */
+let ultimaFalha: { erro: string; status: number | null; quando: number } | null = null;
+
+export function ultimaFalhaIA(): { erro: string; status: number | null; quando: number } | null {
+  return ultimaFalha;
+}
+
+export function limparFalhaIA(): void {
+  ultimaFalha = null;
+}
+
 /**
  * Chamada única, sem retry: o motor do RP precisa de previsibilidade.
  * Qualquer falha (401, 429, timeout, CORS) devolve erro e o chamador
@@ -144,6 +155,12 @@ export async function chamarIA(
     stream: false,
   };
   const base = config.baseUrl.replace(/\/$/, "");
+  // Toda falha vira registro público: a UI precisa mostrar quando o motor
+  // local assumiu no lugar da IA — fingir que é IA é pior que falhar.
+  const falha = (erro: string, status: number | null, latenciaMs: number): ResultadoIA => {
+    ultimaFalha = { erro, status, quando: Date.now() };
+    return { texto: null, erro, status, latenciaMs };
+  };
   try {
     // 1º caminho: proxy same-origin do app (NVIDIA não manda CORS pro browser).
     // 2º: chamada direta, pra preview estático/endpoint que aceite CORS.
@@ -165,12 +182,11 @@ export async function chamarIA(
     }
     if (!resp) {
       if (!chaveCliente) {
-        return {
-          texto: null,
-          erro: "proxy indisponível e sem chave local",
-          status: null,
-          latenciaMs: Math.round(performance.now() - inicio),
-        };
+        return falha(
+          "proxy indisponível e sem chave local",
+          null,
+          Math.round(performance.now() - inicio),
+        );
       }
       resp = await fetch(`${base}/chat/completions`, {
         method: "POST",
@@ -187,34 +203,29 @@ export async function chamarIA(
     if (!resp.ok) {
       const corpo = await resp.text().catch(() => "");
       const detalhe = corpo.replace(/\s+/g, " ").slice(0, 220);
-      return {
-        texto: null,
-        erro: `HTTP ${resp.status}${detalhe ? ` — ${detalhe}` : ""}`,
-        status: resp.status,
-        latenciaMs,
-      };
+      return falha(`HTTP ${resp.status}${detalhe ? ` — ${detalhe}` : ""}`, resp.status, latenciaMs);
     }
     const contentType = resp.headers.get("content-type") ?? "";
     if (!contentType.includes("json")) {
-      return {
-        texto: null,
-        erro: `resposta não-JSON (${contentType || "sem content-type"})`,
-        status: resp.status,
+      return falha(
+        `resposta não-JSON (${contentType || "sem content-type"})`,
+        resp.status,
         latenciaMs,
-      };
+      );
     }
     const data = (await resp.json()) as {
       choices?: { message?: { content?: string } }[];
     };
     const texto = (data.choices?.[0]?.message?.content ?? "").trim();
     if (!texto) {
-      return { texto: null, erro: "resposta vazia", status: resp.status, latenciaMs };
+      return falha("resposta vazia", resp.status, latenciaMs);
     }
+    ultimaFalha = null;
     return { texto, erro: null, status: resp.status, latenciaMs };
   } catch (e) {
     const latenciaMs = Math.round(performance.now() - inicio);
     const erro = e instanceof DOMException && e.name === "AbortError" ? "timeout" : String(e);
-    return { texto: null, erro: erro.slice(0, 220), status: null, latenciaMs };
+    return falha(erro.slice(0, 220), null, latenciaMs);
   } finally {
     clearTimeout(timeout);
   }

@@ -196,14 +196,29 @@ export function respostaLocalGeral(estado: EstadoRP, texto: string): string {
   const r = rng((estado.seed ^ (estado.turno * 40503) ^ (texto.length * 7)) >>> 0);
   const resumo = resumoMensal(estado);
   const conflito = estado.mundo.conflitos[0];
+  const pendencia = estado.pendencias.find((p) => p.ativa);
+  const ultima = estado.feed[0]?.titulo;
+  const ceoCitado = PERFIS_CEO.find((p) => t.includes(p.nome.toLowerCase().split(" ")[0]));
 
-  if (/(caixa|dinheiro|patrimônio|patrimonio|holding)/.test(t)) {
+  if (ceoCitado) {
+    const rel = estado.relacoes[ceoCitado.relacaoChave] ?? 50;
+    return `${ceoCitado.nome} (${ceoCitado.cargo}, ${ceoCitado.divisao}) tá com relação ${rel}/100 pra gente. ${
+      rel >= 70
+        ? "Com ele eu não preciso nem intermediar — manda direto."
+        : rel >= 40
+          ? "Frio, mas funcional. Se você elogiar em público ele dobra o resultado."
+          : "Hostil. Tudo que sai daqui ele lê como ameaça — cuida o que fala com o nome dele no ar."
+    }`;
+  }
+
+  if (/(caixa|dinheiro|patrimônio|patrimonio|holding|coin)/.test(t)) {
     return sorteia(r, [
-      `Tô te ouvindo no canal aberto, boss man — e o 130º inteiro também. Caixa em ${fmtUSD(estado.caixa)}, grupo em $3,8tri. Se o passo for grande, a Sofia já sabe antes de você terminar a frase.`,
-      `${fmtUSD(estado.caixa)} de caixa livre. Fala alto que o conselho gosta deNumbers que chegam sem nota.`,
+      `Tô te ouvindo no canal aberto, boss man — e o 130º inteiro também. Caixa em ${fmtUSD(estado.caixa)}, grupo em $3,8tri, Space Coin a $${estado.coin.toFixed(2)}. Se o passo for grande, a Sofia já sabe antes de você terminar a frase.`,
+      `${fmtUSD(estado.caixa)} de caixa livre, cartão corporativo em $${(estado.cartao * 1000).toFixed(1)}M de limite. Fala alto que o conselho gosta de número que chega sem nota.`,
+      `Pessoal seu: ${fmtUSD(estado.pessoal)}. Holding: $3,8tri. Essa conta é a única que a Sofia audita duas vezes — ela confia em você, não em mim.`,
     ]);
   }
-  if (/(conselho|conselho|diretoria|reunião|reuniao)/.test(t)) {
+  if (/(conselho|diretoria|reunião|reuniao|ata)/.test(t)) {
     return `Conselho em ${estado.mundo.tensao}/100${
       conflito
         ? ` — ${conflito.entre} × ${conflito.sobre} ainda ronca`
@@ -211,15 +226,30 @@ export function respostaLocalGeral(estado: EstadoRP, texto: string): string {
     }. No canal aberto eles escutam tudo, boss man. Use isso a favor.`;
   }
   if (/(sofia|noah|casa|greenwich|família|familia)/.test(t)) {
-    return `Sofia tá em ${estado.sofia.estresse}/100 de estresse. Se você for pra casa, ela decide se vai junto — eu só abro a porta do helicóptero.`;
+    return `Sofia tá em ${estado.sofia.estresse}/100 de estresse e ${estado.sofia.energia}/100 de energia. ${
+      estado.sofiaNaCasa
+        ? "Tá em Greenwich agora."
+        : "Se você for pra casa, ela decide se vai junto — eu só abro a porta do helicóptero."
+    }`;
   }
-  if (/(plano|mês|mes|semana|próximo|proximo|meta)/.test(t)) {
+  if (/(pendência|pendencia|pendurado|em aberto|problema)/.test(t) && pendencia) {
+    return `A pendência que ronca mais é "${pendencia.nome}" — ${pendencia.descricao}. Tá no passo ${pendencia.passo} das ${pendencia.etapas.length}. O resto é ruído.`;
+  }
+  if (/(feed|manchete|midia|mídia|imprensa|mr times|jornal)/.test(t)) {
+    return `Última manchete na mesa: "${ultima ?? "nada ainda"}". A imprensa plantada na torre copia o que é dito aqui em quinze minutos — então o canal é o seu microfone e o seu risco.`;
+  }
+  if (/(plano|mês|mes|semana|próximo|proximo|meta|diretriz)/.test(t)) {
     return `Mês fechando a ${fmtUSD(resumo.lucro)} de lucro, diretriz: ${estado.plano.diretriz}. Semana ${estado.calendario.semana}/4. Tudo que você disser aqui o império inteiro escuta — então escolhe as palavras como escolhe os números.`;
+  }
+  if (/(segurança|seguranca|ameaça|ameaca|proteção|protecao|guarda)/.test(t)) {
+    return `Segurança do 130º e da torre: blindada, jammer ligado, sem rotina de foto. Se virar coisa pública eu troco a rota do dia inteiro — me avisa antes.`;
   }
   return sorteia(r, [
     `Canal aberto, boss man. Eu escuto, o 130º escuta, e o que sai daqui vira manchete no MR Times antes do almoço. Fala.`,
-    `Tô contigo. O império tá em ${fmtUSD(estado.holding / 1000)}tri e ${estado.mundo.tensao}/100 de tensão no conselho. O que a gente joga no canal hoje?`,
-    `Ouvi. Semana ${estado.calendario.semana}/4, ${estado.heat} de heat, moral em ${estado.moral}. Manda a próxima.`,
+    `Tô contigo. ${ultima ? `Depois de "${ultima}", ` : ""}o conselho tá em ${estado.mundo.tensao}/100 e a moral do grupo em ${estado.moral}. O que a gente joga no canal hoje?`,
+    `Ouvi. Semana ${estado.calendario.semana}/4, ${estado.heat} de heat, ${estado.aprovacao} de aprovação com o povo. Manda a próxima.`,
+    `Pode falar — mas lembra que ${ceoCitado ? "quem você citar" : "os doze CEOs"} tão de ouvido aberto. ${conflito ? `${conflito.entre} vai usar qualquer palavra solta contra a gente.` : "Sem conflito aberto, o que dá margem pra você arriscar mais."}`,
+    `Registrado. Eu anoto, o conselho anota, e a Sofia audita depois. Se for ordem de gestão, manda pela caixa de ordem que aí vira semana e vira número.`,
   ]);
 }
 
