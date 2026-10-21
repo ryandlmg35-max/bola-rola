@@ -92,6 +92,16 @@ export function ChatGeral({ aberto, onFechar, onIrParaReuniao }: Props) {
               </span>
             )}
           </div>
+          {!meu && m.pensamento && (
+            <details className="mb-1 text-left">
+              <summary className="cursor-pointer select-none text-[10px] text-muted-foreground hover:text-foreground">
+                pensou por {Math.max(1, Math.round((m.pensouMs ?? 0) / 1000))}s
+              </summary>
+              <pre className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border/50 bg-background/50 p-2 text-[10px] leading-snug text-muted-foreground">
+                {m.pensamento}
+              </pre>
+            </details>
+          )}
           <div
             className={`rounded-2xl px-3.5 py-2.5 text-left text-sm leading-relaxed ${
               meu

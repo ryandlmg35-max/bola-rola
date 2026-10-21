@@ -459,6 +459,11 @@ export function estadoInicial(): EstadoRP {
     reuniaoAtual: null,
     sofiaNaCasa: null,
     chatsCEOs: {},
+    memoria: {
+      geral: { resumo: "", marcas: 0 },
+      sofia: { resumo: "", marcas: 0 },
+      axiom: { resumo: "", marcas: 0 },
+    },
   };
 }
 

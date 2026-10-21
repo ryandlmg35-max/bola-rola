@@ -52,6 +52,7 @@ export const NOMES_MODELOS: Record<keyof ModelosIA, string> = {
   mundo: "Motor do mundo (eventos)",
   sofia: "Sofia (CFO)",
   axiom: "Axiom (chief of staff)",
+  geral: "Canal aberto do 130º",
   conselho: "Conselho de fechamento",
 };
 
@@ -65,6 +66,7 @@ export function modelosPadrao(provedor: ProvedorIA): ModelosIA {
       mundo: "openai/gpt-oss-20b",
       sofia: "deepseek-ai/deepseek-v4.1-flash",
       axiom: "deepseek-ai/deepseek-v4.1-flash",
+      geral: "deepseek-ai/deepseek-v4.1-flash",
       conselho: "openai/gpt-oss-20b",
     };
   }
@@ -73,6 +75,7 @@ export function modelosPadrao(provedor: ProvedorIA): ModelosIA {
     mundo: "gpt-4o-mini",
     sofia: "gpt-4o-mini",
     axiom: "gpt-4o-mini",
+    geral: "gpt-4o-mini",
     conselho: "gpt-4o-mini",
   };
 }
@@ -87,7 +90,8 @@ export function configInicial(): ConfigIA {
     baseUrl: BASE_NVIDIA,
     apiKey: "",
     modelos: modelosPadrao("nvidia"),
-    versaoConfig: 2,
+    raciocinio: true,
+    versaoConfig: 4,
   };
 }
 

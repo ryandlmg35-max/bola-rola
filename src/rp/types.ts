@@ -89,6 +89,8 @@ export interface ModelosIA {
   sofia: string;
   /** Chat do Axiom (chief of staff). */
   axiom: string;
+  /** Canal aberto do 130º — todo mundo ouve. */
+  geral: string;
   /** Reunião de fechamento de mês. */
   conselho: string;
 }
@@ -99,8 +101,24 @@ export interface ConfigIA {
   baseUrl: string;
   apiKey: string;
   modelos: ModelosIA;
+  /** Planejar antes de responder (duas chamadas). Desligável pra economizar. */
+  raciocinio: boolean;
   /** Versão do schema de configuração; saves antigos migram modelos/chave. */
   versaoConfig?: number;
+}
+
+/** Memória de longo prazo de uma conversa — resumo rolante. */
+export interface MemoriaConversa {
+  /** Resumo acumulado em PT-BR; nunca descartado, só condensado. */
+  resumo: string;
+  /** Quantas mensagens do início do chat já foram dobradas no resumo. */
+  marcas: number;
+}
+
+export interface MemoriaRP {
+  geral: MemoriaConversa;
+  sofia: MemoriaConversa;
+  axiom: MemoriaConversa;
 }
 
 export interface MsgChat {
@@ -112,6 +130,9 @@ export interface MsgChat {
   auto?: boolean;
   /** Quem escreveu de verdade: IA ou motor local. Nunca esconder isso. */
   fonte?: "ia" | "local";
+  /** Raciocínio interno que gerou a resposta (não faz parte da fala). */
+  pensamento?: string;
+  pensouMs?: number;
 }
 
 /** Mensagem do chat geral do 130º — canal aberto, todo mundo ouve. */
@@ -126,6 +147,9 @@ export interface MsgGeral {
   chips?: string[];
   /** Quem escreveu de verdade: IA ou motor local. Nunca esconder isso. */
   fonte?: "ia" | "local";
+  /** Raciocínio interno que gerou a resposta (não faz parte da fala). */
+  pensamento?: string;
+  pensouMs?: number;
 }
 
 /** Reunião detectada no chat ou na ordem livre. */
@@ -237,4 +261,6 @@ export interface EstadoRP {
   sofiaNaCasa: boolean | null;
   /** Chats com os CEOs das divisões — keyed por divisao.id. */
   chatsCEOs: Record<string, MsgCEO[]>;
+  /** Memória de longo prazo por conversa (resumo rolante). */
+  memoria: MemoriaRP;
 }

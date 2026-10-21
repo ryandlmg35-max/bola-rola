@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { useRP } from "./store";
 import { loreLinhas } from "./lore";
 import { BASE_NVIDIA, MODELOS_NVIDIA, NOMES_MODELOS, aplicarPreset, testarIA } from "./ia";
+import { bibliaDoArquivo, bibliaOverride, salvarBibliaOverride } from "./biblia";
 import type { ModelosIA, ProvedorIA } from "./types";
 
 interface Props {
@@ -29,6 +31,19 @@ export function Ajustes({ aberto, onFechar }: Props) {
   const [msg, setMsg] = useState("");
   const [teste, setTeste] = useState<Teste>({ estado: "idle", detalhe: "" });
   const [chaveServidor, setChaveServidor] = useState<boolean | null>(null);
+  const [bibliaTexto, setBibliaTexto] = useState("");
+  const [bibliaAviso, setBibliaAviso] = useState("");
+
+  useEffect(() => {
+    if (!aberto) return;
+    let vivo = true;
+    void bibliaDoArquivo().then((arquivo) => {
+      if (vivo) setBibliaTexto(bibliaOverride() ?? arquivo);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [aberto]);
 
   useEffect(() => {
     if (!aberto) return;
@@ -127,6 +142,22 @@ export function Ajustes({ aberto, onFechar }: Props) {
             />
           </div>
 
+          <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background/40 p-3">
+            <div>
+              <Label htmlFor="raciocinio">Raciocínio em duas fases</Label>
+              <p className="text-xs text-muted-foreground">
+                A IA planeja (quem está presente, riscos, gancho) antes de responder. O plano
+                aparece recolhido no chat como “pensou por Xs”. Desligado = uma chamada só, mais
+                rápido.
+              </p>
+            </div>
+            <Switch
+              id="raciocinio"
+              checked={cfg.raciocinio !== false}
+              onCheckedChange={(v) => ajustarConfig({ raciocinio: v })}
+            />
+          </div>
+
           <div className="grid gap-2 sm:grid-cols-2">
             <button
               type="button"
@@ -221,6 +252,54 @@ export function Ajustes({ aberto, onFechar }: Props) {
                 Nemotron Super podem enfileirar ou não estar liberados na tua conta.
               </p>
             )}
+          </div>
+
+          <div className="rounded-lg border border-border/60 bg-background/40 p-3">
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+                Bíblia do mundo
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {bibliaOverride() ? "override salvo neste navegador" : "arquivo publicado"}
+              </span>
+            </div>
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              Fatos canônicos que toda resposta da IA consulta. O arquivo fica em{" "}
+              <code>/biblia-do-mundo.md</code>; o texto abaixo é um override local que tem
+              precedência — limpe e restaure para voltar ao arquivo.
+            </p>
+            <Textarea
+              value={bibliaTexto}
+              onChange={(e) => setBibliaTexto(e.target.value)}
+              className="min-h-40 font-mono text-[11px] leading-snug"
+              spellCheck={false}
+            />
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  salvarBibliaOverride(bibliaTexto);
+                  setBibliaAviso("Bíblia salva — vale na próxima resposta.");
+                }}
+              >
+                Salvar bíblia
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  salvarBibliaOverride(null);
+                  void bibliaDoArquivo().then((arquivo) => setBibliaTexto(arquivo));
+                  setBibliaAviso("Restaurado o arquivo publicado.");
+                }}
+              >
+                Restaurar arquivo
+              </Button>
+              {bibliaAviso && (
+                <span className="text-[11px] text-muted-foreground">{bibliaAviso}</span>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

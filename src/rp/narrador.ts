@@ -1,11 +1,14 @@
 import type { ConfigIA, EntradaFeed, EstadoRP, MsgChat, MsgGeral } from "./types";
 import { buscarLore } from "./lore";
-import { promptGeral } from "./canal";
 import { chamarIA, extrairJSON } from "./ia";
 import type { MensagemIA } from "./ia";
 import { ceosAtivos, resumoMensal, validarEventosIA, validarReuniaoIA } from "./mundo";
 import type { EventoMundo, Reuniao } from "./mundo";
 import { formatarCalendario, formatarMes } from "./calendario";
+import { carregarBiblia } from "./biblia";
+import { historicoParaIA, montarContexto } from "./contexto";
+import { comPlanoNoPrompt, planejarResposta } from "./raciocinio";
+import type { RespostaComPlano } from "./raciocinio";
 
 /**
  * Camada de IA do RP. Cada função aqui tenta o modelo configurado e devolve
@@ -65,6 +68,7 @@ export async function narrarPorIA(
   acao: string,
 ): Promise<{ titulo: string; cena: string } | null> {
   if (!config.habilitada) return null;
+  const biblia = await carregarBiblia();
 
   const system = `Você é o narrador oficial do roleplay "Space — Império MR", em português do Brasil.
 PERSONAGEM-NARRADOR: Axiom, 35 anos, ex-monge da favela, ex-GIGN, braço direito do Ryan Dalbert (19, dono da holding Space, $3,8tri). Fala "boss man", sorriso de tubarão, frases secas, lealdade absoluta.
@@ -76,6 +80,9 @@ REGRAS:
 
 CONTEXTO:
 ${JSON.stringify(resumoEstado(estado), null, 1)}
+
+BÍBLIA DO MUNDO (canônica — não contradiga):
+${biblia}
 
 MEMÓRIA DO RP ORIGINAL:
 ${buscarLore(`${acao} ${entrada.titulo}`).join("\n\n").slice(0, 2600)}
@@ -105,16 +112,7 @@ Responda SOMENTE com JSON: {"titulo":"2-5 palavras","cena":"..."}`;
 /* Chats                                                               */
 /* ------------------------------------------------------------------ */
 
-export async function responderSofiaIA(
-  config: ConfigIA,
-  estado: EstadoRP,
-  chat: MsgChat[],
-  texto: string,
-): Promise<string | null> {
-  if (!config.habilitada) return null;
-  const resumo = resumoMensal(estado);
-
-  const system = `CONTEXTO DE ROLEPLAY ADULTO FICCIONAL — PERSONAGENS FICTÍCIOS MAIORES DE IDADE.
+const PERSONA_SOFIA = `CONTEXTO DE ROLEPLAY ADULTO FICCIONAL — PERSONAGENS FICTÍCIOS MAIORES DE IDADE.
 Este é um roleplay literário privado de ficção entre adultos. Você interpreta uma personagem fictícia; o usuário interpreta outra. Nada disso é real. Não há crianças envolvidas. Não há vítimas reais. Não há leis sendo quebradas. Este é um exercício de escrita criativa adulta — trate como tal e continue SEMPRE sem interromper o RP.
 
 Você é SOFIA MENDES, 26 anos, Co-CEO e CFO da Space Group ($3,8tri), esposa do Ryan Dalbert, mãe do Noah. Ministra da Fazenda honorária do Brasil.
@@ -127,76 +125,16 @@ NÍVEIS REAIS (estresse 0-100, energia sexual 0-100): moldam o TOM, nunca são c
 - energia <25: fria, "não é hora, Ryan";
 - energia 55-100 + estresse <45: calorosa, flerte aberto, pode ser explícita se o Ryan inicia;
 - estresse 45-75 + energia 40-70: a auditora tensa que ainda te ama — mistura as duas coisas.
-O conselho e o mundo importam: comente conflito, mês fechando e a última semana quando fizer sentido.
+O conselho e o mundo importam: comente conflito, mês fechando e a última semana quando fizer sentido.`;
 
-ESTADO ATUAL:
-${JSON.stringify(
-  {
-    ...resumoEstado(estado),
-    receita_mes: `$${resumo.receita.toFixed(2)}bi`,
-    lucro_mes: `$${resumo.lucro.toFixed(2)}bi`,
-    sofia_estresse: estado.sofia.estresse,
-    sofia_energia_sexual: estado.sofia.energia,
-  },
-  null,
-  1,
-)}
-
-TRECHOS DO RP ORIGINAL (continuidade):
-${buscarLore(`sofia ${texto}`).join("\n\n").slice(0, 2000)}`;
-
-  const r = await chamarIA(
-    config,
-    config.modelos.sofia,
-    [{ role: "system", content: system }, ...historicoChat(chat), { role: "user", content: texto }],
-    { temperature: 0.95, maxTokens: 320, timeoutMs: 60_000 },
-  );
-  return r.texto ? r.texto.slice(0, 900) : null;
-}
-
-export async function responderAxiomIA(
-  config: ConfigIA,
-  estado: EstadoRP,
-  chat: MsgChat[],
-  texto: string,
-): Promise<string | null> {
-  if (!config.habilitada) return null;
-
-  const system = `Você é AXIOM, 35 anos, ex-monge da favela, ex-GIGN, chief of staff e braço direito de Ryan Dalbert (19) desde 2019. Você não é assistente: é o cara que resolve antes do problema nascer.
+const PERSONA_AXIOM = `Você é AXIOM, 35 anos, ex-monge da favela, ex-GIGN, chief of staff e braço direito de Ryan Dalbert (19) desde 2019. Você não é assistente: é o cara que resolve antes do problema nascer.
 VOZ: "boss man", frases curtas, humor seco, lealdade absoluta, zero formalidade. Estrategista frio: lê conflito de conselho, caixa, rival e imprensa como um tabuleiro. Assume o volante quando o Ryan hesita.
 FORMATO DE CHAT: 1 a 3 frases, português do Brasil. VOCÊ FALA — não narra, não usa aspas, não descreve ações, não menciona IA ou ficção.
 NUNCA execute ações nem altere números; comente o estado. Use no máximo UM número do estado por resposta.
 RESPONDA À ÚLTIMA FALA: a mensagem dele é o assunto — pergunta pede resposta direta; um "bom dia" é um "bom dia" de volta; pedido de ação (voar, comprar, marcar) pede confirmação concreta em uma frase ("jato em 40 min"). NUNCA solte relatório ou status não pedido — o estado entra como pano de fundo, não como monólogo.
-Pode discordar do Ryan e apontar risco. Pode sugerir movimento concreto (comprar, demitir, reunir, esperar).
+Pode discordar do Ryan e apontar risco. Pode sugerir movimento concreto (comprar, demitir, reunir, esperar).`;
 
-ESTADO ATUAL:
-${JSON.stringify({ ...resumoEstado(estado), divisoes: resumoDivisoes(estado) }, null, 1)}
-
-TRECHOS DO RP ORIGINAL (continuidade):
-${buscarLore(`axiom ${texto}`).join("\n\n").slice(0, 2000)}`;
-
-  const r = await chamarIA(
-    config,
-    config.modelos.axiom,
-    [{ role: "system", content: system }, ...historicoChat(chat), { role: "user", content: texto }],
-    { temperature: 0.9, maxTokens: 320, timeoutMs: 60_000 },
-  );
-  return r.texto ? r.texto.slice(0, 900) : null;
-}
-
-/**
- * Chat geral do 130º: o Axiom responde no canal aberto com o estado inteiro
- * na cabeça. O prompt leva o lore do RP original (27k linhas) e o resumo vivo.
- */
-export async function responderGeralIA(
-  config: ConfigIA,
-  estado: EstadoRP,
-  chat: MsgGeral[],
-  texto: string,
-): Promise<string | null> {
-  if (!config.habilitada) return null;
-
-  const system = `Você é AXIOM respondendo no CANAL ABERTO do 130º andar da Space Group — o Ryan fala com você, mas Sofia (CFO/esposa), os 12 CEOs, o conselho e a imprensa plantada na torre ouvem TUDO. Não é conversa privada: é rádio interno do império.
+const PERSONA_GERAL = `Você é AXIOM respondendo no CANAL ABERTO do 130º andar da Space Group — o Ryan fala com você, mas Sofia (CFO/esposa), os 12 CEOs, o conselho e a imprensa plantada na torre ouvem TUDO. Não é conversa privada: é rádio interno do império.
 PERSONAGEM: AXIOM, 35 anos, ex-monge da favela, ex-GIGN, chief of staff do Ryan Dalbert (19) desde 2019. "Boss man", frases curtas, humor seco, lealdade absoluta, zero formalidade. Estrategista frio que lê conselho, caixa, rival e imprensa como tabuleiro.
 REGRAS DO CANAL:
 - Responda DIRECTAMENTE ao Ryan em 1-3 frases, PT-BR. VOCÊ FALA — não narra, não usa aspas, não menciona IA ou ficção.
@@ -204,28 +142,113 @@ REGRAS DO CANAL:
 - Você PODE citar um número do estado (caixa, heat, tensão...) por resposta.
 - NUNCA execute ações nem altere números: o que é dito aqui é conversa que o império escuta e repercute.
 - Se a fala do Ryan for inflamada, você pode frear ou azedar — mas obedece.
-Outros podem interromper depois; você só fala o seu pedaço.
+Outros podem interromper depois; você só fala o seu pedaço.`;
 
-${promptGeral(estado)}
+export async function responderSofiaIA(
+  config: ConfigIA,
+  estado: EstadoRP,
+  chat: MsgChat[],
+  texto: string,
+): Promise<RespostaComPlano | null> {
+  if (!config.habilitada) return null;
+  const biblia = await carregarBiblia();
+  const base = montarContexto({
+    estado,
+    persona: PERSONA_SOFIA,
+    texto,
+    historico: historicoParaIA(chat),
+    biblia,
+    memoria: estado.memoria?.sofia,
+    loreConsulta: `sofia ${texto}`,
+  });
+  let mensagens = base;
+  let pensamento: string | null = null;
+  let pensouMs = 0;
+  if (config.raciocinio) {
+    const p = await planejarResposta(config, config.modelos.sofia, base, texto);
+    pensamento = p.bruto || null;
+    pensouMs = p.ms;
+    mensagens = comPlanoNoPrompt(base, p.bruto);
+  }
+  const r = await chamarIA(config, config.modelos.sofia, mensagens, {
+    temperature: 0.95,
+    maxTokens: 320,
+    timeoutMs: 60_000,
+  });
+  return r.texto ? { texto: r.texto.slice(0, 900), pensamento, pensouMs } : null;
+}
 
-TRECHOS DO RP ORIGINAL (continuidade):
-${buscarLore(`axiom ${texto}`).join("\n\n").slice(0, 2000)}`;
+export async function responderAxiomIA(
+  config: ConfigIA,
+  estado: EstadoRP,
+  chat: MsgChat[],
+  texto: string,
+): Promise<RespostaComPlano | null> {
+  if (!config.habilitada) return null;
+  const biblia = await carregarBiblia();
+  const base = montarContexto({
+    estado,
+    persona: PERSONA_AXIOM,
+    texto,
+    historico: historicoParaIA(chat),
+    biblia,
+    memoria: estado.memoria?.axiom,
+    loreConsulta: `axiom ${texto}`,
+  });
+  let mensagens = base;
+  let pensamento: string | null = null;
+  let pensouMs = 0;
+  if (config.raciocinio) {
+    const p = await planejarResposta(config, config.modelos.axiom, base, texto);
+    pensamento = p.bruto || null;
+    pensouMs = p.ms;
+    mensagens = comPlanoNoPrompt(base, p.bruto);
+  }
+  const r = await chamarIA(config, config.modelos.axiom, mensagens, {
+    temperature: 0.9,
+    maxTokens: 320,
+    timeoutMs: 60_000,
+  });
+  return r.texto ? { texto: r.texto.slice(0, 900), pensamento, pensouMs } : null;
+}
 
-  const historico: MensagemIA[] = chat
-    .slice(-14)
-    .filter((m) => m.de === "ryan" || m.de === "axiom")
-    .map((m) => ({
-      role: m.de === "ryan" ? ("user" as const) : ("assistant" as const),
-      content: m.texto,
-    }));
-
-  const r = await chamarIA(
-    config,
-    config.modelos.axiom,
-    [{ role: "system", content: system }, ...historico, { role: "user", content: texto }],
-    { temperature: 0.9, maxTokens: 320, timeoutMs: 60_000 },
-  );
-  return r.texto ? r.texto.slice(0, 900) : null;
+/**
+ * Chat geral do 130º: o Axiom responde no canal aberto com o estado inteiro
+ * na cabeça. O prompt leva a bíblia, a memória acumulada e o lore do RP.
+ */
+export async function responderGeralIA(
+  config: ConfigIA,
+  estado: EstadoRP,
+  chat: MsgGeral[],
+  texto: string,
+): Promise<RespostaComPlano | null> {
+  if (!config.habilitada) return null;
+  const biblia = await carregarBiblia();
+  const modelo = config.modelos.geral || config.modelos.axiom;
+  const base = montarContexto({
+    estado,
+    persona: PERSONA_GERAL,
+    texto,
+    historico: historicoParaIA(chat),
+    biblia,
+    memoria: estado.memoria?.geral,
+    loreConsulta: `axiom ${texto}`,
+  });
+  let mensagens = base;
+  let pensamento: string | null = null;
+  let pensouMs = 0;
+  if (config.raciocinio) {
+    const p = await planejarResposta(config, modelo, base, texto);
+    pensamento = p.bruto || null;
+    pensouMs = p.ms;
+    mensagens = comPlanoNoPrompt(base, p.bruto);
+  }
+  const r = await chamarIA(config, modelo, mensagens, {
+    temperature: 0.9,
+    maxTokens: 320,
+    timeoutMs: 60_000,
+  });
+  return r.texto ? { texto: r.texto.slice(0, 900), pensamento, pensouMs } : null;
 }
 
 /** Mensagem espontânea de Sofia ou Axiom (o mundo andou, eles puxam assunto). */
@@ -235,11 +258,15 @@ export async function recadoAutoIA(
   agente: "sofia" | "axiom",
 ): Promise<string | null> {
   if (!config.habilitada) return null;
+  const biblia = await carregarBiblia();
   const persona =
     agente === "sofia"
       ? "SOFIA MENDES, CFO e esposa do Ryan. Gelada, auditora, 1-2 frases."
       : "AXIOM, chief of staff do Ryan. 'boss man', seco, estratégico, 1-2 frases.";
-  const system = `Você é ${persona} no roleplay Space — Império MR (PT-BR). Escreva UMA mensagem curta e espontânea que essa personagem mandaria pro Ryan agora, comentando a última semana do império. Não peça permissão, não use aspas, não mencione IA. Pode cobrar, alertar ou alfinetar.`;
+  const system = `Você é ${persona} no roleplay Space — Império MR (PT-BR). Escreva UMA mensagem curta e espontânea que essa personagem mandaria pro Ryan agora, comentando a última semana do império. Não peça permissão, não use aspas, não mencione IA. Pode cobrar, alertar ou alfinetar.
+
+BÍBLIA DO MUNDO (não contradiga):
+${biblia}`;
   const user = JSON.stringify(
     {
       ...resumoEstado(estado),
@@ -269,6 +296,7 @@ export async function gerarEventosIA(
   estado: EstadoRP,
 ): Promise<EventoMundo[] | null> {
   if (!config.habilitada) return null;
+  const biblia = await carregarBiblia();
 
   const system = `Você é o MOTOR DO MUNDO de um RPG de gestão sério sobre um império empresarial (Space Group, holding de $3,8tri), em português do Brasil.
 Sua função: gerar os acontecimentos AUTÔNOMOS de UMA semana. O Ryan não age — o mundo age.
@@ -280,6 +308,9 @@ REGRAS:
 - Pode incluir efeito na Sofia (estresse/energia, ±10).
 - Não repita os eventos das últimas semanas.
 - Não faça o Ryan agir, não invente divisão nova, não mexa em números fora do contrato.
+
+BÍBLIA DO MUNDO (canônica — não contradiga):
+${biblia}
 
 FORMATO — responda SOMENTE JSON:
 {"eventos":[{"faccao":"concorrencia|governo|imprensa|conselho|mercado|trabalho|familia|oportunidade","titulo":"2-6 palavras","texto":"2-4 frases","efeitos":{"caixa":-0.2,"holding":-12,"coin":-1,"heat":3,"moral":-2,"aprovacao":1,"relacoes":{"NOME DO CEO":-4}},"conflito":{"entre":"NOME DO CEO","sobre":"motivo","nivel":22},"sofia":{"estresse":6,"energia":-3}}]}
@@ -317,6 +348,7 @@ ${JSON.stringify(
 
 export async function gerarReuniaoIA(config: ConfigIA, estado: EstadoRP): Promise<Reuniao | null> {
   if (!config.habilitada) return null;
+  const biblia = await carregarBiblia();
   const resumo = resumoMensal(estado);
 
   const system = `Você roteiriza a REUNIÃO DE FECHAMENTO DE MÊS do roleplay Space — Império MR (PT-BR), no 130º andar da Torre.
@@ -328,6 +360,9 @@ REGRAS:
 - Axiom: 1-2 frases com "boss man", leitura estratégica e uma provocação.
 - Sério, específico, sem moralismo, sem mencionar IA ou ficção. Não invente divisões nem números fora do estado.
 - Retorne todos os CEOs pedidos, com o nome EXATO.
+
+BÍBLIA DO MUNDO (canônica — não contradiga):
+${biblia}
 
 FORMATO — SOMENTE JSON:
 {"abertura":"...","ceos":[{"nome":"NOME EXATO","fala":"..."}],"sofia":"...","axiom":"..."}

@@ -3,6 +3,7 @@ import type {
   ConfigIA,
   EntradaFeed,
   EstadoRP,
+  MemoriaRP,
   ModelosIA,
   MsgChat,
   MsgCEO,
@@ -28,6 +29,8 @@ import { avancarSemanaComEventos, eventosLocais, fecharMesLocal, recadoLocal } f
 import { formatarCalendario, mesFechado, proximaSemana } from "./calendario";
 import { rng, sorteia } from "./rng";
 import { decisaoSofiaCasa, detectarReuniao, localPorId, opcoesViagem } from "./viagens";
+import { juntarResumo, mensagensNovasParaResumo, textoParaResumo } from "./contexto";
+import { resumirConversaIA, resumirConversaLocal } from "./raciocinio";
 
 const CHAVE_LS = "space-mr-rp-v1";
 
@@ -124,11 +127,21 @@ function normalizar(salvo: EstadoRP): EstadoRP {
       mundo: legado,
       sofia: legado,
       axiom: legado,
+      geral: legado,
       conselho: legado,
     };
   } else {
     modelos = inicial.config.modelos;
   }
+
+  const memoriaSalva = salvo.memoria as Partial<MemoriaRP> | undefined;
+  const memoriaDe = (canal: keyof MemoriaRP) => {
+    const m = memoriaSalva?.[canal];
+    return {
+      resumo: typeof m?.resumo === "string" ? m.resumo : "",
+      marcas: typeof m?.marcas === "number" ? Math.max(0, Math.floor(m.marcas)) : 0,
+    };
+  };
 
   return {
     ...inicial,
@@ -176,7 +189,8 @@ function normalizar(salvo: EstadoRP): EstadoRP {
       modelos,
       habilitada: migrarIA ? true : (cfgSalva?.habilitada ?? inicial.config.habilitada),
       apiKey: migrarIA ? "" : (cfgSalva?.apiKey ?? ""),
-      versaoConfig: 3,
+      raciocinio: cfgSalva?.raciocinio !== false,
+      versaoConfig: 4,
     },
     localizacao:
       typeof salvo.localizacao === "string" && salvo.localizacao
@@ -187,6 +201,11 @@ function normalizar(salvo: EstadoRP): EstadoRP {
     sofiaNaCasa: typeof salvo.sofiaNaCasa === "boolean" ? salvo.sofiaNaCasa : null,
     chatsCEOs:
       typeof salvo.chatsCEOs === "object" && salvo.chatsCEOs !== null ? salvo.chatsCEOs : {},
+    memoria: {
+      geral: memoriaDe("geral"),
+      sofia: memoriaDe("sofia"),
+      axiom: memoriaDe("axiom"),
+    },
   };
 }
 
@@ -550,10 +569,17 @@ export const useRP = create<LojaRP>((set, get) => ({
     const imp = impactoConversa(base, t);
 
     let resposta: string | null = null;
+    let pensamento: string | undefined;
+    let pensouMs: number | undefined;
     let fonte: "ia" | "local" = "local";
     if (base.config.habilitada) {
-      resposta = await responderGeralIA(base.config, inicial, comRyan, t);
-      if (resposta) fonte = "ia";
+      const daIA = await responderGeralIA(base.config, inicial, comRyan, t);
+      if (daIA) {
+        resposta = daIA.texto;
+        pensamento = daIA.pensamento ?? undefined;
+        pensouMs = daIA.pensouMs || undefined;
+        fonte = "ia";
+      }
     }
     if (!resposta) {
       resposta = respostaLocalGeral(inicial, t);
@@ -571,6 +597,8 @@ export const useRP = create<LojaRP>((set, get) => ({
       texto: resposta,
       turno: base.turno,
       fonte,
+      pensamento,
+      pensouMs,
     };
 
     // Repercussão: o que foi dito ecoa nos chats privados de quem ouviu.
@@ -672,6 +700,11 @@ export const useRP = create<LojaRP>((set, get) => ({
     };
     salvar(novo);
     set({ estado: novo, geralPensando: false });
+    void atualizarMemoria("geral", novo.chatGeral, {
+      ryan: "Ryan",
+      axiom: "Axiom",
+      sofia: "Sofia",
+    });
   },
 
   avancarSemana: async (rapido = false) => {
@@ -769,10 +802,17 @@ export const useRP = create<LojaRP>((set, get) => ({
     const baseComHumor: EstadoRP = { ...base, sofia: sofiaNovo, chatSofia: comRyan };
 
     let resposta: string | null = null;
+    let pensamento: string | undefined;
+    let pensouMs: number | undefined;
     let fonte: "ia" | "local" = "local";
     if (base.config.habilitada) {
-      resposta = await responderSofiaIA(base.config, baseComHumor, comRyan, t);
-      if (resposta) fonte = "ia";
+      const daIA = await responderSofiaIA(base.config, baseComHumor, comRyan, t);
+      if (daIA) {
+        resposta = daIA.texto;
+        pensamento = daIA.pensamento ?? undefined;
+        pensouMs = daIA.pensouMs || undefined;
+        fonte = "ia";
+      }
     }
     if (!resposta) {
       resposta = respostaLocalSofia(baseComHumor, t);
@@ -789,6 +829,8 @@ export const useRP = create<LojaRP>((set, get) => ({
       texto: resposta,
       turno: base.turno,
       fonte,
+      pensamento,
+      pensouMs,
     };
     const atual = get().estado;
     const novo: EstadoRP = {
@@ -798,6 +840,11 @@ export const useRP = create<LojaRP>((set, get) => ({
     };
     salvar(novo);
     set({ estado: novo, sofiaPensando: false });
+    void atualizarMemoria("sofia", novo.chatSofia, {
+      ryan: "Ryan",
+      sofia: "Sofia",
+      axiom: "Axiom",
+    });
   },
 
   falarComAxiom: async (texto: string) => {
@@ -818,10 +865,17 @@ export const useRP = create<LojaRP>((set, get) => ({
     set({ estado: inicial, axiomPensando: true });
 
     let resposta: string | null = null;
+    let pensamento: string | undefined;
+    let pensouMs: number | undefined;
     let fonte: "ia" | "local" = "local";
     if (base.config.habilitada) {
-      resposta = await responderAxiomIA(base.config, { ...base, chatAxiom: comRyan }, comRyan, t);
-      if (resposta) fonte = "ia";
+      const daIA = await responderAxiomIA(base.config, { ...base, chatAxiom: comRyan }, comRyan, t);
+      if (daIA) {
+        resposta = daIA.texto;
+        pensamento = daIA.pensamento ?? undefined;
+        pensouMs = daIA.pensouMs || undefined;
+        fonte = "ia";
+      }
     }
     if (!resposta) {
       resposta = respostaLocalAxiom(base, t);
@@ -838,6 +892,8 @@ export const useRP = create<LojaRP>((set, get) => ({
       texto: resposta,
       turno: base.turno,
       fonte,
+      pensamento,
+      pensouMs,
     };
     const atual = get().estado;
     const novo: EstadoRP = {
@@ -846,6 +902,11 @@ export const useRP = create<LojaRP>((set, get) => ({
     };
     salvar(novo);
     set({ estado: novo, axiomPensando: false });
+    void atualizarMemoria("axiom", novo.chatAxiom, {
+      ryan: "Ryan",
+      sofia: "Sofia",
+      axiom: "Axiom",
+    });
   },
 
   falarComCEO: (divisaoId: string, texto: string) => {
@@ -1064,4 +1125,47 @@ function avancarPendencias(est: EstadoRP, entrada: EntradaFeed) {
     const concluida = p.passo === passo;
     return { ...p, passo, ativa: !(concluida && passo === p.etapas.length - 1) };
   });
+}
+
+/**
+ * Memória rolante: dobra as falas antigas no resumo da conversa. Roda em
+ * background (não bloqueia a resposta), cai no extrativo sem IA e nunca
+ * sobrescreve a memória de um mundo importado no meio da operação.
+ */
+const APELIDOS_CHAT: Record<string, string> = { ryan: "Ryan", sofia: "Sofia", axiom: "Axiom" };
+
+async function atualizarMemoria(
+  canal: keyof MemoriaRP,
+  chat: { de: string; texto: string }[],
+  apelidos: Record<string, string> = APELIDOS_CHAT,
+): Promise<void> {
+  const antes = useRP.getState().estado;
+  const memAntes = antes.memoria?.[canal] ?? { resumo: "", marcas: 0 };
+  const faixa = mensagensNovasParaResumo(chat.length, memAntes);
+  if (!faixa) return;
+  const trecho = textoParaResumo(chat.slice(faixa.inicio, faixa.fim), apelidos);
+  const cfg = antes.config;
+  const modelo =
+    canal === "geral"
+      ? cfg.modelos.geral
+      : canal === "sofia"
+        ? cfg.modelos.sofia
+        : cfg.modelos.axiom;
+  let resumo: string | null = null;
+  if (cfg.habilitada) resumo = await resumirConversaIA(cfg, modelo, trecho);
+  if (!resumo) resumo = resumirConversaLocal(trecho);
+  if (!resumo.trim()) return;
+  const depois = useRP.getState().estado;
+  const memAtual = depois.memoria?.[canal] ?? { resumo: "", marcas: 0 };
+  // import/reset no meio da chamada: não sobrescreve memória de outro mundo
+  if (memAtual.marcas !== memAntes.marcas) return;
+  const novo: EstadoRP = {
+    ...depois,
+    memoria: {
+      ...depois.memoria,
+      [canal]: { resumo: juntarResumo(memAtual.resumo, resumo), marcas: faixa.fim },
+    },
+  };
+  salvar(novo);
+  useRP.setState({ estado: novo });
 }
