@@ -19,6 +19,48 @@ export function respostaLocalAxiom(estado: EstadoRP, texto: string): string {
     t.includes(d.nome.toLowerCase().split(" ")[1]?.toLowerCase() ?? "###"),
   );
 
+  // intenções conversacionais — responder AO QUE ELE DISSE, não soltar relatório
+  if (
+    /(bom dia|boa tarde|boa noite|bom dia,|oi[,! ]|olá|ola[,! ]|fala aí|fala ai|^e aí|^e ai|e ai,|tudo bem|tudo bom)/.test(
+      t,
+    )
+  ) {
+    const saudacao = /boa noite/.test(t)
+      ? "Boa noite"
+      : /boa tarde/.test(t)
+        ? "Boa tarde"
+        : "Bom dia";
+    return sorteia(r, [
+      `${saudacao}, boss man. Conselho a ${estado.mundo.tensao}/100, ${estado.mundo.clima.toLowerCase()}. Café preto ou já parte pro primeiro movimento?`,
+      `${saudacao}. Tudo no lugar: caixa em ${fmtUSD(estado.caixa)}, ${pendencias.length} pendência(s) na minha mesa. O dia é seu.`,
+    ]);
+  }
+
+  if (
+    /(voo|voar|viajar|viagem|malas|passagem|jato|brasil|brasília|brasilia|partir|embarcar)/.test(t)
+  ) {
+    const de = estado.localizacao === "casa" ? "a casa" : "a torre";
+    return sorteia(r, [
+      `Jato tá em ${de}, pronto. Me diz o destino e a hora que eu aciono a tripulação e travo sua agenda — o mapa de rotas tá aberto no Painel.`,
+      `Pode ir, boss man: ${de} pro aeroporto são 25 min com o combo escolta. Quer que eu alinhe sua agenda antes? A Sofia vai querer saber.`,
+    ]);
+  }
+
+  if (/(obrigad|valeu|brigad)/.test(t)) {
+    return sorteia(r, [
+      "Sempre, boss man. É pra isso que eu existo.",
+      "Tamo junto. Pode dormir tranquilo que a torre fica comigo.",
+    ]);
+  }
+
+  if (
+    /(quem é você|quem e voce|quem te criou|quem te programou|quem te mandou|você é real|voce é real|você é humano|voce é humano)/.test(
+      t,
+    )
+  ) {
+    return "Sou o Axiom. Desde 2019 com você, boss man — antes da Space Group ter nome. O resto é história que a gente ainda vai escrever.";
+  }
+
   if (/(plano|diretriz|próximo|proximo|semana)/.test(t)) {
     return `Plano deste mês: ${estado.plano.diretriz}. Receita ×${estado.plano.receitaMult.toFixed(2)}, lucro ×${estado.plano.lucroMult.toFixed(2)}. Semana ${estado.calendario.semana}/4. Eu tenho três nomes no bolso e três ideias na cabeça. Só diz o nome.`;
   }

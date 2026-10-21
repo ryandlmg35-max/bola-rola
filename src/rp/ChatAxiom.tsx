@@ -19,7 +19,7 @@ interface Props {
 }
 
 export function ChatAxiom({ aberto, onFechar, onIrParaReuniao }: Props) {
-  const { estado, axiomPensando, falarComAxiom, marcarLidas, dispensarConvite } = useRP();
+  const { estado, axiomPensando, falarComAxiom, marcarLidas, dispensarConvite, iaErro } = useRP();
   const [texto, setTexto] = useState("");
   const listaRef = useRef<HTMLDivElement>(null);
 
@@ -56,6 +56,18 @@ export function ChatAxiom({ aberto, onFechar, onIrParaReuniao }: Props) {
               ? `Respondendo por IA · ${estado.config.modelos.axiom.split("/").pop()}`
               : "Axiom local — lê o caixa, o conselho e o feed real, motor determinístico."}
           </DialogDescription>
+          {iaErro && (
+            <div className="mt-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-[11px] leading-snug text-destructive">
+              <strong className="font-bold">IA caiu — motor local assumiu.</strong>{" "}
+              <span className="opacity-80">{iaErro}</span>
+              {iaErro.includes("403") && (
+                <span className="mt-1 block opacity-80">
+                  Chave NVIDIA sem permissão de inferência (conta sem crédito). Chave nova em
+                  build.nvidia.com ou cola outra em Ajustes.
+                </span>
+              )}
+            </div>
+          )}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px]">
             <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 font-semibold text-primary">
               Tensão do conselho {estado.mundo.tensao}/100
@@ -83,6 +95,19 @@ export function ChatAxiom({ aberto, onFechar, onIrParaReuniao }: Props) {
               >
                 <div className="mb-0.5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
                   {m.de === "ryan" ? "Ryan" : "Axiom"}
+                  {m.fonte === "local" && (
+                    <span
+                      className="rounded-full border border-amber-400/40 bg-amber-500/10 px-1.5 py-px text-[8px] text-amber-300"
+                      title="A IA não respondeu — o motor local determinístico assumiu"
+                    >
+                      motor local
+                    </span>
+                  )}
+                  {m.fonte === "ia" && (
+                    <span className="rounded-full border border-primary/40 bg-primary/10 px-1.5 py-px text-[8px] text-primary">
+                      IA
+                    </span>
+                  )}
                   {m.auto && (
                     <span className="rounded-full bg-primary/20 px-1.5 py-px text-[8px] text-primary">
                       sozinho

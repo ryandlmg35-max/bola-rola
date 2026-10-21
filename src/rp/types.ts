@@ -110,6 +110,8 @@ export interface MsgChat {
   turno: number;
   /** Mensagem que chegou sozinha (o mundo andou sem o Ryan). */
   auto?: boolean;
+  /** Quem escreveu de verdade: IA ou motor local. Nunca esconder isso. */
+  fonte?: "ia" | "local";
 }
 
 /** Mensagem do chat geral do 130º — canal aberto, todo mundo ouve. */

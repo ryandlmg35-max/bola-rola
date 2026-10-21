@@ -769,16 +769,26 @@ export const useRP = create<LojaRP>((set, get) => ({
     const baseComHumor: EstadoRP = { ...base, sofia: sofiaNovo, chatSofia: comRyan };
 
     let resposta: string | null = null;
+    let fonte: "ia" | "local" = "local";
     if (base.config.habilitada) {
       resposta = await responderSofiaIA(base.config, baseComHumor, comRyan, t);
+      if (resposta) fonte = "ia";
     }
-    if (!resposta) resposta = respostaLocalSofia(baseComHumor, t);
+    if (!resposta) {
+      resposta = respostaLocalSofia(baseComHumor, t);
+      // A falha aparece — o chat nunca pode fingir que é IA.
+      const falha = ultimaFalhaIA();
+      set({ iaErro: falha ? falha.erro : null });
+    } else {
+      set({ iaErro: null });
+    }
 
     const msgSofia: MsgChat = {
       id: `s-${Date.now()}`,
       de: "sofia",
       texto: resposta,
       turno: base.turno,
+      fonte,
     };
     const atual = get().estado;
     const novo: EstadoRP = {
@@ -808,16 +818,26 @@ export const useRP = create<LojaRP>((set, get) => ({
     set({ estado: inicial, axiomPensando: true });
 
     let resposta: string | null = null;
+    let fonte: "ia" | "local" = "local";
     if (base.config.habilitada) {
       resposta = await responderAxiomIA(base.config, { ...base, chatAxiom: comRyan }, comRyan, t);
+      if (resposta) fonte = "ia";
     }
-    if (!resposta) resposta = respostaLocalAxiom(base, t);
+    if (!resposta) {
+      resposta = respostaLocalAxiom(base, t);
+      // A falha aparece — o chat nunca pode fingir que é IA.
+      const falha = ultimaFalhaIA();
+      set({ iaErro: falha ? falha.erro : null });
+    } else {
+      set({ iaErro: null });
+    }
 
     const msgAxiom: MsgChat = {
       id: `a-${Date.now()}`,
       de: "axiom",
       texto: resposta,
       turno: base.turno,
+      fonte,
     };
     const atual = get().estado;
     const novo: EstadoRP = {

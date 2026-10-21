@@ -66,6 +66,38 @@ function baseSofia(estado: EstadoRP, texto: string): string {
     ]);
   }
 
+  // ── Intenções conversacionais ──────────────────────────────────────────
+  // Responder AO QUE ELE DISSE — "bom dia" é um bom dia de volta, não relatório.
+  if (/(bom dia|boa tarde|boa noite|oi[,! ]|olá|ola[,! ]|e aí|e ai,|tudo bem|tudo bom)/.test(t)) {
+    const saudacao = /boa noite/.test(t)
+      ? "Boa noite"
+      : /boa tarde/.test(t)
+        ? "Boa tarde"
+        : "Bom dia";
+    if (humor.tom === "derretendo" || humor.tom === "calorosa") {
+      return sorteia(r, [
+        `${saudacao}, você. Fica aqui mais cinco minutos antes de virar presidente de novo.`,
+        `${saudacao}... Vem tomar café comigo antes que a Sofia CFO assuma o turno.`,
+      ]);
+    }
+    if (humor.tom === "limite" || humor.tom === "congelada") {
+      return `${saudacao}, Ryan. Tô no limite — mas você falou bom dia antes de pedir alguma coisa, então já melhora o dia.`;
+    }
+    return sorteia(r, [
+      `${saudacao}, Ryan. ${pendentes} pendência(s) na minha mesa e o café já tá quente. O que vem hoje?`,
+      `${saudacao}. Tô com o balanço aberto e ${fmtUSD(estado.caixa)} na tela — bom dia de ver número subir.`,
+    ]);
+  }
+
+  if (
+    /(como você tá|como voce ta|como está|como voce esta|tudo certo por aí|beleza por aí)/.test(t)
+  ) {
+    return sorteia(r, [
+      `Tô bem. Estresse em ${estado.sofia.estresse}/100 — aguento você e o conselho hoje.`,
+      "Cansada do conselho, mas bem. E você, além de bonito, veio fazer o quê no 130º?",
+    ]);
+  }
+
   // ── Flerte / elogio físico ──────────────────────────────────────────────
   if (/(flert|paquera|olhando|sorrindo|saudade|pele|perfume|cheirosa|cheiroso)/.test(t)) {
     if (humor.tom === "derretendo" || humor.tom === "calorosa") {
