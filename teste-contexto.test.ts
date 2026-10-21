@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { estadoInicial } from "./src/rp/estadoInicial";
 import { configInicial } from "./src/rp/ia";
+import { PRESETS_PROVEDOR, aplicarPresetProvedor } from "./src/rp/ia";
 import {
   LIMITE_HISTORICO,
   historicoParaIA,
@@ -116,5 +117,30 @@ describe("config do motor novo", () => {
     expect(cfg.raciocinio).toBe(true);
     expect(cfg.modelos.geral).toBe("deepseek-ai/deepseek-v4.1-flash");
     expect(cfg.modelos.sofia).toBe("deepseek-ai/deepseek-v4.1-flash");
+  });
+});
+
+describe("presets de provedor", () => {
+  it("tem ids únicos, URL segura e modelos preenchidos", () => {
+    const ids = new Set(PRESETS_PROVEDOR.map((p) => p.id));
+    expect(ids.size).toBe(PRESETS_PROVEDOR.length);
+    for (const p of PRESETS_PROVEDOR) {
+      const local = p.baseUrl.includes("localhost");
+      expect(local || p.baseUrl.startsWith("https://")).toBe(true);
+      for (const modelo of Object.values(p.modelos)) {
+        expect(modelo.trim().length).toBeGreaterThan(0);
+      }
+      if (!local) expect(p.chaveUrl).toBeTruthy();
+    }
+  });
+
+  it("aplicar preset troca para custom sem tocar na chave", () => {
+    const groq = PRESETS_PROVEDOR.find((p) => p.id === "groq");
+    expect(groq).toBeTruthy();
+    const patch = aplicarPresetProvedor(groq!);
+    expect(patch.provedor).toBe("custom");
+    expect(patch.baseUrl).toBe("https://api.groq.com/openai/v1");
+    expect(patch.apiKey).toBeUndefined();
+    expect(patch.modelos?.sofia).toBe("openai/gpt-oss-120b");
   });
 });

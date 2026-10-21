@@ -103,6 +103,97 @@ export function aplicarPreset(provedor: ProvedorIA): Partial<ConfigIA> {
   };
 }
 
+/**
+ * Atalhos pra provedores OpenAI-compatible com tier grátis (ou local).
+ * IDs conferidos no catálogo público em out/2026 — se o provedor aposentar
+ * um modelo, basta trocar o campo "Modelo por função" em Ajustes.
+ */
+export interface PresetProvedor {
+  id: "groq" | "openrouter" | "gemini" | "ollama";
+  nome: string;
+  baseUrl: string;
+  /** Onde tirar a chave; null = não precisa (local). */
+  chaveUrl: string | null;
+  selo: "grátis" | "local";
+  nota: string;
+  modelos: ModelosIA;
+}
+
+export const PRESETS_PROVEDOR: PresetProvedor[] = [
+  {
+    id: "groq",
+    nome: "Groq",
+    baseUrl: "https://api.groq.com/openai/v1",
+    chaveUrl: "https://console.groq.com/keys",
+    selo: "grátis",
+    nota: "GPT-OSS 120B/20B no silício da Groq — o mais rápido do lote.",
+    modelos: {
+      narrador: "openai/gpt-oss-20b",
+      mundo: "openai/gpt-oss-120b",
+      sofia: "openai/gpt-oss-120b",
+      axiom: "openai/gpt-oss-120b",
+      geral: "openai/gpt-oss-120b",
+      conselho: "openai/gpt-oss-120b",
+    },
+  },
+  {
+    id: "openrouter",
+    nome: "OpenRouter",
+    baseUrl: "https://openrouter.ai/api/v1",
+    chaveUrl: "https://openrouter.ai/keys",
+    selo: "grátis",
+    nota: "Modelos :free (Nemotron/MiniMax). Fila maior, contexto de 1M.",
+    modelos: {
+      narrador: "nvidia/nemotron-3.5-lightning:free",
+      mundo: "nvidia/nemotron-3-super-120b-a12b:free",
+      sofia: "minimax/minimax-m3.1-flash:free",
+      axiom: "minimax/minimax-m3.1-flash:free",
+      geral: "minimax/minimax-m3.1-flash:free",
+      conselho: "nvidia/nemotron-3-super-120b-a12b:free",
+    },
+  },
+  {
+    id: "gemini",
+    nome: "Google Gemini",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    chaveUrl: "https://aistudio.google.com/apikey",
+    selo: "grátis",
+    nota: "Endpoint OpenAI-compatível do AI Studio; filtro de conteúdo mais rígido.",
+    modelos: {
+      narrador: "gemini-3.5-flash-lite",
+      mundo: "gemini-3.8-flash",
+      sofia: "gemini-3.8-flash",
+      axiom: "gemini-3.8-flash",
+      geral: "gemini-3.8-flash",
+      conselho: "gemini-3.8-flash",
+    },
+  },
+  {
+    id: "ollama",
+    nome: "Ollama (local)",
+    baseUrl: "http://localhost:11434/v1",
+    chaveUrl: null,
+    selo: "local",
+    nota: "Sem chave e sem internet. Rode `ollama pull llama3.1` antes.",
+    modelos: {
+      narrador: "llama3.1",
+      mundo: "llama3.1",
+      sofia: "llama3.1",
+      axiom: "llama3.1",
+      geral: "llama3.1",
+      conselho: "llama3.1",
+    },
+  },
+];
+
+export function aplicarPresetProvedor(preset: PresetProvedor): Partial<ConfigIA> {
+  return {
+    provedor: "custom",
+    baseUrl: preset.baseUrl,
+    modelos: { ...preset.modelos },
+  };
+}
+
 export interface MensagemIA {
   role: "system" | "user" | "assistant";
   content: string;

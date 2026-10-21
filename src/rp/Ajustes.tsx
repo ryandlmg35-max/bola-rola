@@ -13,7 +13,15 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useRP } from "./store";
 import { loreLinhas } from "./lore";
-import { BASE_NVIDIA, MODELOS_NVIDIA, NOMES_MODELOS, aplicarPreset, testarIA } from "./ia";
+import {
+  BASE_NVIDIA,
+  MODELOS_NVIDIA,
+  NOMES_MODELOS,
+  PRESETS_PROVEDOR,
+  aplicarPreset,
+  aplicarPresetProvedor,
+  testarIA,
+} from "./ia";
 import { bibliaDoArquivo, bibliaOverride, salvarBibliaOverride } from "./biblia";
 import type { ModelosIA, ProvedorIA } from "./types";
 
@@ -33,6 +41,7 @@ export function Ajustes({ aberto, onFechar }: Props) {
   const [chaveServidor, setChaveServidor] = useState<boolean | null>(null);
   const [bibliaTexto, setBibliaTexto] = useState("");
   const [bibliaAviso, setBibliaAviso] = useState("");
+  const [presetAviso, setPresetAviso] = useState("");
 
   useEffect(() => {
     if (!aberto) return;
@@ -189,6 +198,50 @@ export function Ajustes({ aberto, onFechar }: Props) {
             </button>
           </div>
 
+          <div className="rounded-lg border border-border/60 bg-background/40 p-3">
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+                Atalhos prontos
+              </span>
+              <span className="text-[11px] text-muted-foreground">preenche URL + modelos</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {PRESETS_PROVEDOR.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    ajustarConfig(aplicarPresetProvedor(p));
+                    setPresetAviso(
+                      p.chaveUrl
+                        ? `${p.nome} aplicado — cole a chave acima e clique em testar.`
+                        : `${p.nome} aplicado — sem chave; precisa do Ollama rodando.`,
+                    );
+                  }}
+                  className={`rounded-lg border p-2.5 text-left transition-colors ${
+                    cfg.baseUrl === p.baseUrl
+                      ? "border-primary bg-primary/10"
+                      : "border-border/60 bg-background/40 hover:border-primary/50"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold">{p.nome}</span>
+                    <span className="rounded-full border border-ouro/40 bg-ouro/10 px-1.5 py-px text-[8px] uppercase text-ouro">
+                      {p.selo}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">{p.nota}</p>
+                  {p.chaveUrl && (
+                    <span className="mt-1 block truncate text-[10px] text-primary">
+                      {p.chaveUrl.replace("https://", "")}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            {presetAviso && <p className="mt-2 text-[11px] text-primary">{presetAviso}</p>}
+          </div>
+
           {cfg.provedor === "nvidia" && (
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
               Chave grátis em{" "}
@@ -217,7 +270,9 @@ export function Ajustes({ aberto, onFechar }: Props) {
             <p className="text-[11px] text-muted-foreground">
               {chaveServidor
                 ? "Chave NVIDIA do servidor ativa — pode deixar este campo vazio."
-                : "Se ficar vazia, o proxy usa NVIDIA_API_KEY do servidor. A chave do navegador fica só no localStorage."}
+                : cfg.provedor === "nvidia"
+                  ? "Se ficar vazia, o proxy usa NVIDIA_API_KEY do servidor. A chave do navegador fica só no localStorage."
+                  : "Cole a chave do provedor escolhido — fica só no localStorage deste navegador. Em localhost (Ollama/LM Studio) pode ficar vazia."}
             </p>
           </div>
 

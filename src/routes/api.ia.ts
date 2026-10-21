@@ -91,19 +91,20 @@ export const Route = createFileRoute("/api/ia")({
         }
 
         const chaveCliente = typeof dados.apiKey === "string" ? dados.apiKey.trim() : "";
-        const chaveServidor = chaveCliente ? "" : chaveDoServidor();
+
+        const url = urlPermitida(dados.baseUrl);
+        if (!url) return json({ error: "baseUrl não permitida" }, 400);
+
+        const urlLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+        // A chave do servidor só vale no host oficial da NVIDIA; qualquer outro
+        // provedor exige chave do cliente (ou nenhuma, se for localhost).
+        const chaveServidor = chaveCliente || url.hostname !== HOST_NVIDIA ? "" : chaveDoServidor();
         const apiKey = chaveCliente || chaveServidor;
-        if (!apiKey) {
+        if (!apiKey && !urlLocal) {
           return json(
             { error: "sem chave de API (configure NVIDIA_API_KEY ou cole uma chave em Ajustes)" },
             400,
           );
-        }
-
-        const url = urlPermitida(dados.baseUrl);
-        if (!url) return json({ error: "baseUrl não permitida" }, 400);
-        if (chaveServidor && url.hostname !== HOST_NVIDIA) {
-          return json({ error: "chave do servidor só é permitida no host da NVIDIA" }, 400);
         }
 
         const controller = new AbortController();
@@ -114,7 +115,7 @@ export const Route = createFileRoute("/api/ia")({
             signal: controller.signal,
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${apiKey}`,
+              ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
             },
             body: corpo,
           });
