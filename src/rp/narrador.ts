@@ -1,5 +1,6 @@
-import type { ConfigIA, EntradaFeed, EstadoRP, MsgChat } from "./types";
+import type { ConfigIA, EntradaFeed, EstadoRP, MsgChat, MsgGeral } from "./types";
 import { buscarLore } from "./lore";
+import { promptGeral } from "./canal";
 import { chamarIA, extrairJSON } from "./ia";
 import type { MensagemIA } from "./ia";
 import { ceosAtivos, resumoMensal, validarEventosIA, validarReuniaoIA } from "./mundo";
@@ -176,6 +177,49 @@ ${buscarLore(`axiom ${texto}`).join("\n\n").slice(0, 2000)}`;
     config,
     config.modelos.axiom,
     [{ role: "system", content: system }, ...historicoChat(chat), { role: "user", content: texto }],
+    { temperature: 0.9, maxTokens: 320, timeoutMs: 60_000 },
+  );
+  return r.texto ? r.texto.slice(0, 900) : null;
+}
+
+/**
+ * Chat geral do 130º: o Axiom responde no canal aberto com o estado inteiro
+ * na cabeça. O prompt leva o lore do RP original (27k linhas) e o resumo vivo.
+ */
+export async function responderGeralIA(
+  config: ConfigIA,
+  estado: EstadoRP,
+  chat: MsgGeral[],
+  texto: string,
+): Promise<string | null> {
+  if (!config.habilitada) return null;
+
+  const system = `Você é AXIOM respondendo no CANAL ABERTO do 130º andar da Space Group — o Ryan fala com você, mas Sofia (CFO/esposa), os 12 CEOs, o conselho e a imprensa plantada na torre ouvem TUDO. Não é conversa privada: é rádio interno do império.
+PERSONAGEM: AXIOM, 35 anos, ex-monge da favela, ex-GIGN, chief of staff do Ryan Dalbert (19) desde 2019. "Boss man", frases curtas, humor seco, lealdade absoluta, zero formalidade. Estrategista frio que lê conselho, caixa, rival e imprensa como tabuleiro.
+REGRAS DO CANAL:
+- Responda DIRECTAMENTE ao Ryan em 1-3 frases, PT-BR. VOCÊ FALA — não narra, não usa aspas, não menciona IA ou ficção.
+- Você PODE citar um número do estado (caixa, heat, tensão...) por resposta.
+- NUNCA execute ações nem altere números: o que é dito aqui é conversa que o império escuta e repercute.
+- Se a fala do Ryan for inflamada, você pode frear ou azedar — mas obedece.
+Outros podem interromper depois; você só fala o seu pedaço.
+
+${promptGeral(estado)}
+
+TRECHOS DO RP ORIGINAL (continuidade):
+${buscarLore(`axiom ${texto}`).join("\n\n").slice(0, 2000)}`;
+
+  const historico: MensagemIA[] = chat
+    .slice(-14)
+    .filter((m) => m.de === "ryan" || m.de === "axiom")
+    .map((m) => ({
+      role: m.de === "ryan" ? ("user" as const) : ("assistant" as const),
+      content: m.texto,
+    }));
+
+  const r = await chamarIA(
+    config,
+    config.modelos.axiom,
+    [{ role: "system", content: system }, ...historico, { role: "user", content: texto }],
     { temperature: 0.9, maxTokens: 320, timeoutMs: 60_000 },
   );
   return r.texto ? r.texto.slice(0, 900) : null;

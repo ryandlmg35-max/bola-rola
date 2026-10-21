@@ -415,6 +415,15 @@ export function estadoInicial(): EstadoRP {
           "Boss man. O império tá de pé: $3,8tri de valor, $13,3bi de caixa e sete pendências na tua mesa. O calendário virou — janeiro de 2027, semana 1 de 4. Eu já avisei os CEOs que quando o mês fechar eles sobem pro 130º. Até lá o mundo anda sozinho, e eu ando na frente dele.",
       },
     ],
+    chatGeral: [
+      {
+        id: "geral-abertura",
+        de: "axiom",
+        turno: 0,
+        texto:
+          "Canal aberto do 130º, boss man. Tô contigo aqui — mas lembra que a Sofia, os 12 CEOs e o conselho tão todos ouvindo. Fala alto que o império escuta.",
+      },
+    ],
     mundo: {
       tensao: 38,
       conflitos: [

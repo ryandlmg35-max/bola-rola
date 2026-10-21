@@ -10,6 +10,7 @@ import {
   Newspaper,
   Pause,
   Play,
+  Radio,
   Send,
   Volume2,
   VolumeX,
@@ -33,6 +34,7 @@ import { formatarMes, intervaloDaSemana, mesFechado } from "./calendario";
 import { ConviteReuniaoCard } from "./ConviteReuniaoCard";
 import { ViagemDialog } from "./ViagemDialog";
 import { CasaGreenwich } from "./CasaGreenwich";
+import { ChatGeral } from "./ChatGeral";
 import { ReuniaoExtra } from "./ReuniaoExtra";
 import { localPorId } from "./viagens";
 import { humorSofia } from "./sofia";
@@ -286,7 +288,7 @@ export function Painel() {
     estado,
     pensando,
     enviar,
-    conversar,
+    falarNoGeral,
     avancarSemana,
     hidratar,
     marcarLidas,
@@ -302,6 +304,7 @@ export function Painel() {
   const [sedeAberta, setSedeAberta] = useState<string | null>(null);
   const [viagemDestino, setViagemDestino] = useState<string | null>(null);
   const [casaAberta, setCasaAberta] = useState(false);
+  const [chatGeralAberto, setChatGeralAberto] = useState(false);
   const [reuniaoExtraAberta, setReuniaoExtraAberta] = useState(false);
   const [aba, setAba] = useState<"imperio" | "familia">("imperio");
   const [auto, setAuto] = useState(false);
@@ -420,9 +423,12 @@ export function Painel() {
     const t = texto;
     setTexto("");
     if (modoConversa) {
-      // Remove o prefixo / ou > antes de mandar
+      // Remove o prefixo / ou > e manda pro canal aberto do 130º.
       const fala = t.replace(/^[/>]\s*/, "").trim();
-      if (fala) await conversar(fala);
+      if (fala) {
+        setChatGeralAberto(true);
+        await falarNoGeral(fala);
+      }
     } else {
       await enviar(t);
     }
@@ -565,6 +571,16 @@ export function Painel() {
                 <Building2 className="mr-1 h-3.5 w-3.5" /> Base
               </Button>
             )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="relative gap-1 border-primary/40 bg-primary/10 text-primary"
+              onClick={() => setChatGeralAberto(true)}
+              title="Canal aberto do 130º — todo império ouve"
+            >
+              <Radio className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Chat</span>
+            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -966,11 +982,11 @@ export function Painel() {
                       : "border-border/50 bg-background/40 text-muted-foreground"
                   }`}
                 >
-                  💬 Conversa (Axiom)
+                  💬 Chat geral
                 </button>
                 <span className="ml-auto text-muted-foreground normal-case font-normal">
                   {modoConversa
-                    ? "Axiom responde no feed. Outros personagens vão saber."
+                    ? "Canal aberto do 130º — Axiom responde, todo império ouve e reage."
                     : "Gasta uma semana do calendário."}
                 </span>
               </div>
@@ -987,7 +1003,7 @@ export function Painel() {
                   semanaFinal
                     ? "Mês fechado. Convoca o conselho pra virar o mês — nova ordem só depois."
                     : modoConversa
-                      ? "/ Fala pra galera do 130º… (o Axiom responde no feed, sem gastar semana)"
+                      ? "/ Fala no canal aberto do 130º… (o Axiom responde, o império escuta e reage)"
                       : "O que você manda fazer, boss man?  (ex.: gastar 500 milhões na Ilha MR · chamar o INDEX · acelerar a PEC)  — cada ordem custa uma semana."
                 }
                 className="mb-2 min-h-[64px] resize-none bg-background/60"
@@ -1118,6 +1134,11 @@ export function Painel() {
       <ChatAxiom
         aberto={axiomAberto}
         onFechar={() => setAxiomAberto(false)}
+        onIrParaReuniao={abrirReuniao}
+      />
+      <ChatGeral
+        aberto={chatGeralAberto}
+        onFechar={() => setChatGeralAberto(false)}
         onIrParaReuniao={abrirReuniao}
       />
       <ChatCEO divisaoId={ceoDivisaoAberta} onFechar={() => setCeoDivisaoAberta(null)} />

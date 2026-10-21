@@ -6,6 +6,7 @@ import type {
   ModelosIA,
   MsgChat,
   MsgCEO,
+  MsgGeral,
   ProvedorIA,
 } from "./types";
 import { respostaCEO, perfilPorId } from "./ceos";
@@ -16,10 +17,12 @@ import {
   narrarPorIA,
   recadoAutoIA,
   responderAxiomIA,
+  responderGeralIA,
   responderSofiaIA,
 } from "./narrador";
 import { deltaSofia, respostaLocalSofia } from "./sofia";
 import { respostaLocalAxiom } from "./axiom";
+import { aplicarImpacto, impactoConversa, repercussaoChat, respostaLocalGeral } from "./canal";
 import { avancarSemanaComEventos, eventosLocais, fecharMesLocal, recadoLocal } from "./mundo";
 import { formatarCalendario, mesFechado, proximaSemana } from "./calendario";
 import { rng, sorteia } from "./rng";
@@ -34,9 +37,12 @@ interface LojaRP {
   pensando: boolean;
   sofiaPensando: boolean;
   axiomPensando: boolean;
+  geralPensando: boolean;
   enviar: (acao: string) => Promise<void>;
   /** Conversa pública: Axiom responde no feed principal, impacta o RP. */
   conversar: (texto: string) => void;
+  /** Chat geral do 130º: canal aberto, todo mundo ouve, impacta o império. */
+  falarNoGeral: (texto: string) => Promise<void>;
   falarComSofia: (texto: string) => Promise<void>;
   falarComAxiom: (texto: string) => Promise<void>;
   falarComCEO: (divisaoId: string, texto: string) => void;
@@ -132,6 +138,7 @@ function normalizar(salvo: EstadoRP): EstadoRP {
     cartao: typeof salvo.cartao === "number" ? salvo.cartao : inicial.cartao,
     chatSofia: Array.isArray(salvo.chatSofia) ? salvo.chatSofia : inicial.chatSofia,
     chatAxiom: Array.isArray(salvo.chatAxiom) ? salvo.chatAxiom : inicial.chatAxiom,
+    chatGeral: Array.isArray(salvo.chatGeral) ? salvo.chatGeral : inicial.chatGeral,
     sofia: {
       estresse:
         typeof salvo.sofia?.estresse === "number" ? salvo.sofia.estresse : inicial.sofia.estresse,
@@ -332,6 +339,7 @@ export const useRP = create<LojaRP>((set, get) => ({
   pensando: false,
   sofiaPensando: false,
   axiomPensando: false,
+  geralPensando: false,
 
   hidratar: () => {
     const salvo = carregar();
@@ -504,6 +512,151 @@ export const useRP = create<LojaRP>((set, get) => ({
     };
     salvar(novo);
     set({ estado: novo, pensando: false });
+  },
+
+  /** Chat geral do 130º: Axiom responde no canal aberto, o império escuta e
+   *  reage. Determinístico no impacto (heat/moral/aprovação/tensão/relações),
+   *  IA quando ligada. Não gasta semana, não move caixa. */
+  falarNoGeral: async (texto: string) => {
+    const t = texto.trim();
+    if (!t || get().geralPensando) return;
+
+    const base = get().estado;
+    if (mesFechado(base.calendario)) return;
+
+    set({ geralPensando: true });
+
+    const msgRyan: MsgGeral = {
+      id: `g-r-${Date.now()}`,
+      de: "ryan",
+      texto: t,
+      turno: base.turno,
+    };
+    const comRyan = [...base.chatGeral, msgRyan].slice(-300);
+    // Persiste a fala na hora — o convite de reunião detectado no canal abre já.
+    const inicial: EstadoRP = {
+      ...base,
+      chatGeral: comRyan,
+      convite: conviteAposMensagem(t, base),
+    };
+    salvar(inicial);
+    set({ estado: inicial });
+
+    // Impacto determinístico da fala nos indicadores do império.
+    const imp = impactoConversa(base, t);
+
+    let resposta: string | null = null;
+    if (base.config.habilitada) {
+      resposta = await responderGeralIA(base.config, inicial, comRyan, t);
+    }
+    if (!resposta) resposta = respostaLocalGeral(inicial, t);
+
+    const msgAxiom: MsgGeral = {
+      id: `g-a-${Date.now()}`,
+      de: "axiom",
+      texto: resposta,
+      turno: base.turno,
+    };
+
+    // Repercussão: o que foi dito ecoa nos chats privados de quem ouviu.
+    const eco = repercussaoChat(inicial, t, imp);
+    let chatSofia = inicial.chatSofia;
+    let chatAxiom = inicial.chatAxiom;
+    const chatsCEOs = { ...inicial.chatsCEOs };
+    const naoLidas = { ...inicial.naoLidas };
+    const extras: MsgGeral[] = [];
+    for (const r of eco) {
+      const linha: MsgGeral = {
+        id: `g-eco-${r.canal}-${Date.now()}-${extras.length}`,
+        de: r.de,
+        texto: r.texto,
+        turno: base.turno,
+        auto: true,
+      };
+      extras.push(linha);
+      if (r.canal === "sofia") {
+        const ecoSofia: MsgChat = {
+          id: `s-eco-${Date.now()}-${extras.length}`,
+          de: "sofia",
+          texto: r.texto,
+          turno: base.turno,
+          auto: true,
+        };
+        chatSofia = [...chatSofia, ecoSofia].slice(-200);
+        naoLidas.sofia += 1;
+      } else if (r.canal === "axiom") {
+        const ecoAxiom: MsgChat = {
+          id: `a-eco-${Date.now()}-${extras.length}`,
+          de: "axiom",
+          texto: r.texto,
+          turno: base.turno,
+          auto: true,
+        };
+        chatAxiom = [...chatAxiom, ecoAxiom].slice(-200);
+        naoLidas.axiom += 1;
+      } else {
+        chatsCEOs[r.canal] = [
+          ...(chatsCEOs[r.canal] ?? []),
+          {
+            id: `ceo-eco-${Date.now()}-${extras.length}`,
+            de: r.de,
+            texto: r.texto,
+            turno: base.turno,
+          },
+        ].slice(-100);
+      }
+    }
+
+    // O impacto é pequeno por fala; só vira manchete quando é grande.
+    let feed = inicial.feed;
+    if (imp.peso >= 5) {
+      const entrada: EntradaFeed = {
+        id: `g-feed-${Date.now()}`,
+        turno: base.turno,
+        data: base.data,
+        categoria: "midia",
+        titulo: "O que foi dito no 130º vazou",
+        cena: `Ryan: "${t}"\n\nAxiom: "${resposta}"\n\nO canal aberto da torre transformou a conversa em assunto do império.`,
+        efeitos: imp.chips,
+        delta: { heat: imp.heat, moral: imp.moral, aprovacao: imp.aprovacao },
+        reacoes: {
+          midia:
+            imp.heat > 0
+              ? "MR Times pega a fala como manchete da noite."
+              : "Tom positivo na imprensa plantada.",
+          mercado: "Investidores leem o canal como sinal de direção.",
+          povo:
+            imp.aprovacao >= 0
+              ? "Aprovação reage bem ao tom direto."
+              : "Redes criticam a arrogância no ar.",
+        },
+        escolhas: [],
+        narradoPor: "engine",
+      };
+      feed = [entrada, ...inicial.feed].slice(0, 200);
+    }
+
+    const comTodos = [
+      // Os chips de impacto ficam na fala do Ryan — o que ELE disse moveu o império.
+      ...comRyan.map((m) =>
+        m.id === msgRyan.id && imp.chips.length > 0 ? { ...m, chips: imp.chips } : m,
+      ),
+      msgAxiom,
+      ...extras,
+    ].slice(-300);
+    const comImpacto = aplicarImpacto(inicial, imp);
+    const novo: EstadoRP = {
+      ...comImpacto,
+      chatGeral: comTodos,
+      feed,
+      chatSofia,
+      chatAxiom,
+      chatsCEOs,
+      naoLidas,
+      convite: conviteAposMensagem(t, inicial),
+    };
+    salvar(novo);
+    set({ estado: novo, geralPensando: false });
   },
 
   avancarSemana: async (rapido = false) => {

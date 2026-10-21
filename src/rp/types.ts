@@ -112,6 +112,18 @@ export interface MsgChat {
   auto?: boolean;
 }
 
+/** Mensagem do chat geral do 130º — canal aberto, todo mundo ouve. */
+export interface MsgGeral {
+  id: string;
+  de: "ryan" | "axiom" | "sofia" | string;
+  texto: string;
+  turno: number;
+  /** Repercussão automática (outro personagem reagindo ao que foi dito). */
+  auto?: boolean;
+  /** Chips de impacto exibidos sob a fala do Ryan ("aprovação +2"). */
+  chips?: string[];
+}
+
 /** Reunião detectada no chat ou na ordem livre. */
 export interface ConviteReuniao {
   id: string;
@@ -203,6 +215,8 @@ export interface EstadoRP {
   feed: EntradaFeed[];
   chatSofia: MsgChat[];
   chatAxiom: MsgChat[];
+  /** Chat geral do 130º: fala com o Axiom, o império inteiro ouve e reage. */
+  chatGeral: MsgGeral[];
   sofia: SofiaStatus;
   mundo: Mundo;
   plano: PlanoMes;
