@@ -30,7 +30,8 @@ Regras:
 - Máximo 3 itens em cada lista, cada item em até 15 palavras.
 - Use nomes, números e fatos do ESTADO e da MEMÓRIA. Nada inventado.
 - Considere o local atual, quem ouve, a relação com a Sofia e o que já foi dito.
-- Não repita o pedido do Ryan; decida o que a resposta precisa entregar.`;
+- Não repita o pedido do Ryan; decida o que a resposta precisa entregar.
+- O gancho é uma fala curta e concreta, nunca uma cena literária ou parágrafo sensorial.`;
 
 /** Plano interno: barato, curto, temperatura baixa. Falha → null (segue sem). */
 export async function planejarResposta(

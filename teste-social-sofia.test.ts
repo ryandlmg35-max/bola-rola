@@ -39,6 +39,22 @@ describe("camada social da Sofia", () => {
     for (const r of [amo, como]) expect(r!).not.toMatch(TRABALHO);
   });
 
+  it("pedido de presença não vira programa de passeio", () => {
+    const r = respostaSocialSofia(emCasa(), "tô de saco cheio do conselho. vem cá.");
+    expect(r).toMatch(/já vou|tô indo/i);
+    expect(r).not.toMatch(/que tal|passeio|sorvete/i);
+  });
+
+  it("cansaço recebe cuidado, não relatório", () => {
+    const r = respostaSocialSofia(emCasa(), "tô cansado");
+    expect(r).toMatch(/deita|sapato|senta/i);
+  });
+
+  it("presença + cansaço responde os dois", () => {
+    const r = respostaSocialSofia(emCasa(), "tô cansado, vem cá");
+    expect(r).toMatch(/deita|sapato/i);
+  });
+
   it("não intercepta conversa que não é social", () => {
     const st = emCasa();
     expect(respostaSocialSofia(st, "oi amor, você viu o relatório?")).toBeNull();

@@ -275,6 +275,42 @@ export function respostaSocialSofia(estado: EstadoRP, texto: string): string | n
     return sorteia(r, ["Eu também te amo, Ryan.", "Amo você. Sempre."]);
   }
 
+  const pedePresenca =
+    /\b(vem (cá|ca|aqui|pra cá|pra ca)|vem me ver|chega mais|vem comigo)(?=$|[\s.,!?])/.test(t);
+  const cansado = /\b(tô|to|estou) (cansad|exaust|morto|acabado)/.test(t);
+
+  if (pedePresenca || cansado) {
+    if (emCasa) {
+      if (pedePresenca && cansado) {
+        return sorteia(r, [
+          "Já vou. Deita aí que eu cuido de você.",
+          "Tô indo. Tira o sapato e não pensa em mais nada.",
+        ]);
+      }
+      if (pedePresenca) {
+        if (exausta) return "Vou aí. Mas se eu deitar, eu durmo no seu colo.";
+        if (/conselho/.test(t)) {
+          return sorteia(r, [
+            "Já vou. O conselho que espere.",
+            "Tô indo. Deixa o conselho pra amanhã.",
+          ]);
+        }
+        return sorteia(r, [
+          "Já vou. Não sai daí.",
+          "Tô indo. Me espera.",
+          "Vou aí. Deixa a porta aberta.",
+        ]);
+      }
+      return sorteia(r, [
+        "Vem. Deita aqui.",
+        "Tira o sapato. Eu cuido do resto.",
+        "Senta. Hoje o mundo espera.",
+      ]);
+    }
+    if (pedePresenca) return sorteia(r, ["Já vou. Dois minutos.", "Tô indo. Me espera na porta."]);
+    return "Senta um pouco. O império não cai em dez minutos.";
+  }
+
   if (
     /^(como (você|voce|vc) (tá|ta|está|esta)|como vai|tudo certo)(\s*[,!.?]?\s*(amor|meu amor|meu bem|bem|gata|linda|vida))?[!.?]*$/i.test(
       t,
